@@ -172,6 +172,9 @@ const UserAccessForm: React.FC<UserAccessFormProps> = ({ onSubmit }) => {
     <FormContainer onSubmit={handleSubmit}>
       <FormTitle>Request Access Form</FormTitle>
       
+      {/* Hidden input for Netlify Forms */}
+      <input type="hidden" name="form-name" value="user-access" />
+      
       <FormGroup>
         <Label>Name *</Label>
         <Input

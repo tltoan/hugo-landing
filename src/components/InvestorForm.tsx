@@ -172,6 +172,9 @@ const InvestorForm: React.FC<InvestorFormProps> = ({ onSubmit }) => {
     <FormContainer onSubmit={handleSubmit}>
       <FormTitle>Pitch Deck Access Form</FormTitle>
       
+      {/* Hidden input for Netlify Forms */}
+      <input type="hidden" name="form-name" value="investor-access" />
+      
       <FormGroup>
         <Label>Name *</Label>
         <Input
