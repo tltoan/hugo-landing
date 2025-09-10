@@ -1,12 +1,12 @@
-export const encode = (data: Record<string, string>) => {
+export const encode = (data: { [key: string]: any }) => {
   return Object.keys(data)
-    .map(key => encodeURIComponent(key) + "=" + encodeURIComponent(data[key]))
+    .map(key => encodeURIComponent(key) + "=" + encodeURIComponent(String(data[key])))
     .join("&");
 };
 
-export const submitToNetlify = async (
+export const submitToNetlify = async <T extends { [key: string]: any }>(
   formName: string,
-  formData: Record<string, string>
+  formData: T
 ): Promise<boolean> => {
   try {
     const response = await fetch("/", {
