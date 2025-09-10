@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="Hugo - The LeetCode for Finance. Interactive LBO modeling with real-time validation and competitive scoring."
+    />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <title>Hugo - The LeetCode for Finance</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    
+    <!-- Hidden forms for Netlify bot detection -->
+    <!-- User Access Form -->
+    <form name="user-access" netlify netlify-honeypot="bot-field" hidden>
+      <input type="text" name="name" />
+      <input type="email" name="email" />
+      <input type="text" name="university" />
+      <input type="text" name="currentStatus" />
+      <input type="text" name="financeExperience" />
+    </form>
+    
+    <!-- Investor Form -->
+    <form name="investor-access" netlify netlify-honeypot="bot-field" hidden>
+      <input type="text" name="name" />
+      <input type="email" name="email" />
+      <input type="text" name="organization" />
+      <input type="text" name="role" />
+      <input type="text" name="investmentFocus" />
+    </form>
+    
+    <div id="root"></div>
+  </body>
+</html>
