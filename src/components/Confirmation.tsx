@@ -55,9 +55,10 @@ interface ConfirmationProps {
   isInvestor: boolean;
   onHome: () => void;
   onDemoVideo: () => void;
+  onGetStarted?: () => void;
 }
 
-const Confirmation: React.FC<ConfirmationProps> = ({ isInvestor, onHome, onDemoVideo }) => {
+const Confirmation: React.FC<ConfirmationProps> = ({ isInvestor, onHome, onDemoVideo, onGetStarted }) => {
   return (
     <ConfirmationContainer>
       <ConfirmationMessage>
@@ -70,15 +71,18 @@ const Confirmation: React.FC<ConfirmationProps> = ({ isInvestor, onHome, onDemoV
             </>
           ) : (
             <>
-              We'll send you login details within 48 hours.
+              Thank you for your interest! You can create an account now to get started,
               <br />
-              In the meantime, check out our demo video to see Hugo in action.
+              or check out our demo video to see Hugo in action.
             </>
           )}
         </ConfirmationText>
       </ConfirmationMessage>
       
       <ButtonContainer>
+        {!isInvestor && onGetStarted && (
+          <Button onClick={onGetStarted}>Get Started</Button>
+        )}
         <Button onClick={onHome}>Home</Button>
         <Button $secondary onClick={onDemoVideo}>Demo-Video</Button>
       </ButtonContainer>

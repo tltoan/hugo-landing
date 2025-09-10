@@ -1,23 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { GlobalStyles } from './styles/GlobalStyles';
-import Hero from './components/Hero';
-import DemoVideo from './components/DemoVideo';
-import Modal from './components/Modal';
-import UserAccessForm from './components/UserAccessForm';
-import InvestorForm from './components/InvestorForm';
-import Confirmation from './components/Confirmation';
-import { saveSubmission, getSubmissions, downloadSubmissionsCSV } from './utils/storage';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { getSubmissions, downloadSubmissionsCSV } from './utils/storage';
+import LandingPage from './pages/Landing';
+import LoginPage from './pages/Login';
+import Dashboard from './pages/Dashboard';
 
-const AppContainer = styled.div`
-  min-height: 100vh;
-  position: relative;
-`;
-
-const App: React.FC = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isInvestor, setIsInvestor] = useState(false);
-  const [showConfirmation, setShowConfirmation] = useState(false);
+// Main App Router Component
+const AppRouter: React.FC = () => {
+  const { user, loading } = useAuth();
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -45,86 +37,71 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, []);
 
-  const handleOpenModal = () => {
-    setIsModalOpen(true);
-    setShowConfirmation(false);
-  };
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        backgroundColor: '#FFF8E5',
+        color: '#415378',
+        fontFamily: '"Afacad", sans-serif',
+        fontSize: '18px'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            fontSize: '48px',
+            marginBottom: '20px',
+            fontFamily: '"DM Serif Display", serif'
+          }}>
+            Hugo
+          </div>
+          <div>Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setIsInvestor(false);
-    setShowConfirmation(false);
-  };
+  return (
+    <Routes>
+      {/* Public routes */}
+      <Route 
+        path="/" 
+        element={
+          user ? <Navigate to="/dashboard" replace /> : <LandingPage />
+        } 
+      />
+      <Route 
+        path="/login" 
+        element={
+          user ? <Navigate to="/dashboard" replace /> : <LoginPage />
+        } 
+      />
+      
+      {/* Protected routes */}
+      <Route 
+        path="/dashboard" 
+        element={
+          user ? <Dashboard /> : <Navigate to="/login" replace />
+        } 
+      />
+      
+      {/* Catch all route */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+};
 
-  const handleToggleInvestor = () => {
-    setIsInvestor(!isInvestor);
-    setShowConfirmation(false);
-  };
-
-  const handleUserFormSubmit = (data: any) => {
-    console.log('User form submitted:', data);
-    saveSubmission({
-      type: 'user',
-      ...data
-    });
-    setShowConfirmation(true);
-  };
-
-  const handleInvestorFormSubmit = (data: any) => {
-    console.log('Investor form submitted:', data);
-    saveSubmission({
-      type: 'investor',
-      ...data
-    });
-    setShowConfirmation(true);
-  };
-
-  const handleDemoClick = () => {
-    const demoSection = document.getElementById('demo-video');
-    if (demoSection) {
-      demoSection.scrollIntoView({ behavior: 'smooth' });
-    }
-    handleCloseModal();
-  };
-
-  const handleHome = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    handleCloseModal();
-  };
-
+const App: React.FC = () => {
   return (
     <>
       <GlobalStyles />
-      <AppContainer>
-        <Hero 
-          onOpenModal={handleOpenModal}
-          onDemoClick={handleDemoClick}
-        />
-        <DemoVideo />
-        
-        <Modal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          isInvestor={isInvestor}
-          onToggleInvestor={handleToggleInvestor}
-        >
-          {showConfirmation ? (
-            <Confirmation
-              isInvestor={isInvestor}
-              onHome={handleHome}
-              onDemoVideo={handleDemoClick}
-            />
-          ) : (
-            <>
-              {isInvestor ? (
-                <InvestorForm onSubmit={handleInvestorFormSubmit} />
-              ) : (
-                <UserAccessForm onSubmit={handleUserFormSubmit} />
-              )}
-            </>
-          )}
-        </Modal>
-      </AppContainer>
+      <AuthProvider>
+        <Router>
+          <AppRouter />
+        </Router>
+      </AuthProvider>
     </>
   );
 };
