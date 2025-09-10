@@ -94,6 +94,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onUserSignup }) => {
       <Hero 
         onOpenModal={handleOpenModal}
         onDemoClick={handleDemoClick}
+        onSignIn={() => navigate('/login')}
       />
       <DemoVideo />
       

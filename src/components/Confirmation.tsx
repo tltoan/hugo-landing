@@ -71,18 +71,17 @@ const Confirmation: React.FC<ConfirmationProps> = ({ isInvestor, onHome, onDemoV
             </>
           ) : (
             <>
-              Thank you for your interest! You can create an account now to get started,
+              Thank you for your interest! We'll review your application and send you
               <br />
-              or check out our demo video to see Hugo in action.
+              an invite code within 48 hours if approved.
+              <br />
+              In the meantime, check out our demo video to see Hugo in action.
             </>
           )}
         </ConfirmationText>
       </ConfirmationMessage>
       
       <ButtonContainer>
-        {!isInvestor && onGetStarted && (
-          <Button onClick={onGetStarted}>Get Started</Button>
-        )}
         <Button onClick={onHome}>Home</Button>
         <Button $secondary onClick={onDemoVideo}>Demo-Video</Button>
       </ButtonContainer>

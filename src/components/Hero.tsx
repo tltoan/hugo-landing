@@ -132,11 +132,52 @@ const Button = styled.button<{ $secondary?: boolean }>`
 interface HeroProps {
   onOpenModal: () => void;
   onDemoClick: () => void;
+  onSignIn?: () => void;
 }
 
-const Hero: React.FC<HeroProps> = ({ onOpenModal, onDemoClick }) => {
+const SignInLink = styled.div`
+  position: absolute;
+  top: 2rem;
+  right: 2rem;
+  z-index: 10;
+
+  @media (max-width: ${theme.breakpoints.mobile}) {
+    top: 1rem;
+    right: 1rem;
+  }
+`;
+
+const SignInButton = styled.button`
+  padding: 8px 20px;
+  background: transparent;
+  color: ${theme.colors.primary};
+  border: 2px solid ${theme.colors.primary};
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: ${theme.colors.primary};
+    color: ${theme.colors.white};
+  }
+
+  @media (max-width: ${theme.breakpoints.mobile}) {
+    padding: 6px 16px;
+    font-size: 12px;
+  }
+`;
+
+const Hero: React.FC<HeroProps> = ({ onOpenModal, onDemoClick, onSignIn }) => {
   return (
     <HeroContainer>
+      {onSignIn && (
+        <SignInLink>
+          <SignInButton onClick={onSignIn}>Sign In</SignInButton>
+        </SignInLink>
+      )}
+      
       <Logo>Hugo</Logo>
       <Tagline>the leet code for finance.</Tagline>
       
