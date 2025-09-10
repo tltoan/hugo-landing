@@ -15,6 +15,28 @@ const fadeIn = keyframes`
   }
 `;
 
+const slideUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const scaleIn = keyframes`
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+`;
+
 const LoginContainer = styled.div`
   min-height: 100vh;
   display: flex;
@@ -31,7 +53,7 @@ const LoginCard = styled.div`
   box-shadow: 0 20px 60px rgba(65, 83, 120, 0.15);
   max-width: 400px;
   width: 100%;
-  animation: ${fadeIn} 0.6s ease-out;
+  animation: ${scaleIn} 0.8s ease-out;
 `;
 
 const Title = styled.h1`
@@ -40,6 +62,7 @@ const Title = styled.h1`
   color: ${theme.colors.primary};
   margin-bottom: 0.5rem;
   text-align: center;
+  animation: ${slideUp} 0.6s ease-out 0.2s backwards;
 `;
 
 const Subtitle = styled.p`
@@ -47,12 +70,14 @@ const Subtitle = styled.p`
   text-align: center;
   margin-bottom: 2rem;
   opacity: 0.7;
+  animation: ${fadeIn} 0.6s ease-out 0.4s backwards;
 `;
 
 const Form = styled.form`
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  animation: ${slideUp} 0.8s ease-out 0.6s backwards;
 `;
 
 const FormGroup = styled.div`
@@ -73,11 +98,13 @@ const Input = styled.input`
   border-radius: 10px;
   font-size: ${theme.fontSizes.button};
   background-color: ${theme.colors.white};
-  transition: border-color 0.3s ease;
+  transition: all 0.3s ease;
 
   &:focus {
     outline: none;
     border-color: ${theme.colors.primary};
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(65, 83, 120, 0.1);
   }
 
   &::placeholder {
@@ -115,6 +142,7 @@ const ErrorMessage = styled.div`
   border-radius: 10px;
   font-size: 14px;
   text-align: center;
+  animation: ${slideUp} 0.4s ease-out;
 `;
 
 const ToggleText = styled.div`
@@ -122,6 +150,7 @@ const ToggleText = styled.div`
   margin-top: 1.5rem;
   font-size: 14px;
   color: ${theme.colors.text};
+  animation: ${fadeIn} 0.6s ease-out 0.8s backwards;
 `;
 
 const ToggleLink = styled.button`
