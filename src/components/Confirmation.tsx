@@ -1,10 +1,42 @@
 import React from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { theme } from '../styles/theme';
+
+const slideUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const fadeIn = keyframes`
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+`;
+
+const scaleIn = keyframes`
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+`;
 
 const ConfirmationContainer = styled.div`
   text-align: center;
   padding: 2rem 0;
+  animation: ${slideUp} 0.6s ease-out 0.1s backwards;
 `;
 
 const ConfirmationMessage = styled.div`
@@ -13,6 +45,7 @@ const ConfirmationMessage = styled.div`
   border-radius: 15px;
   padding: 2rem;
   margin-bottom: 2rem;
+  animation: ${scaleIn} 0.7s ease-out 0.3s backwards;
 `;
 
 const ConfirmationText = styled.p`
@@ -20,6 +53,7 @@ const ConfirmationText = styled.p`
   color: ${theme.colors.text};
   line-height: 1.8;
   margin: 0;
+  animation: ${fadeIn} 0.5s ease-out 0.5s backwards;
 `;
 
 const ButtonContainer = styled.div`
@@ -27,6 +61,7 @@ const ButtonContainer = styled.div`
   gap: 1.5rem;
   justify-content: center;
   flex-wrap: wrap;
+  animation: ${slideUp} 0.6s ease-out 0.7s backwards;
 
   @media (max-width: ${theme.breakpoints.mobile}) {
     flex-direction: column;
@@ -44,10 +79,16 @@ const Button = styled.button<{ $secondary?: boolean }>`
   border: 2px solid ${theme.colors.buttonPrimary};
   transition: all 0.3s ease;
   min-width: 150px;
+  cursor: pointer;
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(65, 83, 120, 0.2);
+    box-shadow: 0 8px 20px rgba(65, 83, 120, 0.3);
+  }
+
+  &:active {
+    transform: translateY(0px);
+    transition: transform 0.1s ease;
   }
 `;
 

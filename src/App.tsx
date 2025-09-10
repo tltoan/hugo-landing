@@ -6,6 +6,9 @@ import { getSubmissions, downloadSubmissionsCSV } from './utils/storage';
 import LandingPage from './pages/Landing';
 import LoginPage from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import ProblemsPage from './pages/Problems';
+import ProblemPage from './pages/Problem';
+import LeaderboardPage from './pages/Leaderboard';
 
 // Main App Router Component
 const AppRouter: React.FC = () => {
@@ -84,6 +87,24 @@ const AppRouter: React.FC = () => {
         path="/dashboard" 
         element={
           user ? <Dashboard /> : <Navigate to="/login" replace />
+        } 
+      />
+      <Route 
+        path="/problems" 
+        element={
+          user ? <ProblemsPage /> : <Navigate to="/login" replace />
+        } 
+      />
+      <Route 
+        path="/problem/:id" 
+        element={
+          user ? <ProblemPage /> : <Navigate to="/login" replace />
+        } 
+      />
+      <Route 
+        path="/leaderboard" 
+        element={
+          user ? <LeaderboardPage /> : <Navigate to="/login" replace />
         } 
       />
       

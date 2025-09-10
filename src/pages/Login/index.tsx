@@ -74,9 +74,6 @@ const Subtitle = styled.p`
 `;
 
 const Form = styled.form`
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
   animation: ${slideUp} 0.8s ease-out 0.6s backwards;
 `;
 
@@ -167,6 +164,13 @@ const ToggleLink = styled.button`
   }
 `;
 
+const FormContent = styled.div<{ $key: string }>`
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  animation: ${slideUp} 0.4s ease-out;
+`;
+
 const LoginPage: React.FC = () => {
   const { signIn, signUp } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
@@ -182,8 +186,16 @@ const LoginPage: React.FC = () => {
     setLoading(true);
     setError(null);
 
+    console.log('📝 Form submission:', { 
+      isSignUp, 
+      email, 
+      username, 
+      inviteCode: inviteCode ? 'provided' : 'missing' 
+    });
+
     try {
       if (isSignUp) {
+        console.log('🆕 Processing sign up...');
         // Validate invite code for sign up
         if (!inviteCode) {
           throw new Error('Invite code is required to create an account');
@@ -200,10 +212,12 @@ const LoginPage: React.FC = () => {
         // Mark invite code as used
         markInviteCodeUsed(inviteCode, email);
       } else {
+        console.log('🔑 Processing sign in...');
         const { error } = await signIn(email, password);
         if (error) throw error;
       }
     } catch (err: any) {
+      console.error('❌ Form submission error:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -221,58 +235,60 @@ const LoginPage: React.FC = () => {
         {error && <ErrorMessage>{error}</ErrorMessage>}
 
         <Form onSubmit={handleSubmit}>
-          {isSignUp && (
-            <>
-              <FormGroup>
-                <Label>Invite Code *</Label>
-                <Input
-                  type="text"
-                  value={inviteCode}
-                  onChange={(e) => setInviteCode(e.target.value)}
-                  placeholder="Enter your invite code"
-                  required={isSignUp}
-                  style={{ textTransform: 'uppercase' }}
-                />
-              </FormGroup>
-              
-              <FormGroup>
-                <Label>Username</Label>
-                <Input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Enter your username"
-                  required={isSignUp}
-                />
-              </FormGroup>
-            </>
-          )}
+          <FormContent $key={isSignUp ? 'signup' : 'signin'} key={isSignUp ? 'signup' : 'signin'}>
+            {isSignUp && (
+              <>
+                <FormGroup>
+                  <Label>Invite Code *</Label>
+                  <Input
+                    type="text"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value)}
+                    placeholder="Enter your invite code"
+                    required={isSignUp}
+                    style={{ textTransform: 'uppercase' }}
+                  />
+                </FormGroup>
+                
+                <FormGroup>
+                  <Label>Username</Label>
+                  <Input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Enter your username"
+                    required={isSignUp}
+                  />
+                </FormGroup>
+              </>
+            )}
 
-          <FormGroup>
-            <Label>Email</Label>
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              required
-            />
-          </FormGroup>
+            <FormGroup>
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                required
+              />
+            </FormGroup>
 
-          <FormGroup>
-            <Label>Password</Label>
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              required
-            />
-          </FormGroup>
+            <FormGroup>
+              <Label>Password</Label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                required
+              />
+            </FormGroup>
 
-          <Button type="submit" disabled={loading}>
-            {loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
-          </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
+            </Button>
+          </FormContent>
         </Form>
 
         <ToggleText>

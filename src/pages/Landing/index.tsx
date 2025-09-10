@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import Hero from '../../components/Hero';
 import DemoVideo from '../../components/DemoVideo';
 import Modal from '../../components/Modal';
@@ -10,9 +10,24 @@ import Confirmation from '../../components/Confirmation';
 import { saveSubmission } from '../../utils/storage';
 import { submitToNetlify } from '../../utils/netlifyForms';
 
+const fadeInSlide = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
 const LandingContainer = styled.div`
   min-height: 100vh;
   position: relative;
+`;
+
+const FormContainer = styled.div<{ $key: string }>`
+  animation: ${fadeInSlide} 0.4s ease-out;
 `;
 
 interface LandingPageProps {
@@ -112,13 +127,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onUserSignup }) => {
             onGetStarted={() => navigate('/login')}
           />
         ) : (
-          <>
+          <FormContainer $key={isInvestor ? 'investor' : 'user'} key={isInvestor ? 'investor' : 'user'}>
             {isInvestor ? (
               <InvestorForm onSubmit={handleInvestorFormSubmit} />
             ) : (
               <UserAccessForm onSubmit={handleUserFormSubmit} />
             )}
-          </>
+          </FormContainer>
         )}
       </Modal>
     </LandingContainer>

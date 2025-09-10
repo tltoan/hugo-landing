@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import { theme } from '../../styles/theme';
 import { useAuth } from '../../contexts/AuthContext';
@@ -151,9 +152,23 @@ const FeatureButton = styled.button`
 
 const Dashboard: React.FC = () => {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const handleSignOut = () => {
     signOut();
+  };
+
+  const handleStartPracticing = () => {
+    navigate('/problems');
+  };
+
+  const handleViewRankings = () => {
+    navigate('/leaderboard');
+  };
+
+  const handleJoinRace = () => {
+    // For now, open the original racing app in new tab
+    window.open('http://localhost:5176/', '_blank');
   };
 
   return (
@@ -184,7 +199,7 @@ const Dashboard: React.FC = () => {
               Access 15 carefully crafted LBO problems across 3 difficulty levels. 
               From Paper LBOs to Advanced scenarios.
             </FeatureDescription>
-            <FeatureButton>Start Practicing</FeatureButton>
+            <FeatureButton onClick={handleStartPracticing}>Start Practicing</FeatureButton>
           </FeatureCard>
 
           <FeatureCard delay={5}>
@@ -194,7 +209,7 @@ const Dashboard: React.FC = () => {
               Compete with other finance students. Track your ranking and 
               see how you stack up globally.
             </FeatureDescription>
-            <FeatureButton>View Rankings</FeatureButton>
+            <FeatureButton onClick={handleViewRankings}>View Rankings</FeatureButton>
           </FeatureCard>
 
           <FeatureCard delay={6}>
@@ -204,7 +219,7 @@ const Dashboard: React.FC = () => {
               Race against other players in real-time LBO competitions. 
               Test your speed and accuracy.
             </FeatureDescription>
-            <FeatureButton>Join Race</FeatureButton>
+            <FeatureButton onClick={handleJoinRace}>Join Race</FeatureButton>
           </FeatureCard>
         </FeatureGrid>
       </Content>

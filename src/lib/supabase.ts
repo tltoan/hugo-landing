@@ -3,7 +3,20 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://mock.supabase.co'
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'mock-key'
 
+console.log('🔧 Supabase config loaded:', {
+  url: supabaseUrl,
+  keyLength: supabaseAnonKey ? supabaseAnonKey.length : 0,
+  urlFromEnv: process.env.REACT_APP_SUPABASE_URL,
+  keyFromEnv: process.env.REACT_APP_SUPABASE_ANON_KEY ? 'present' : 'missing'
+});
+
 const isMockMode = supabaseUrl === 'https://mock.supabase.co' || !supabaseUrl.includes('supabase.co')
+
+console.log('🎯 Mock mode check:', {
+  isMockMode,
+  isDefaultUrl: supabaseUrl === 'https://mock.supabase.co',
+  includesSupabaseCo: supabaseUrl.includes('supabase.co')
+});
 
 if (isMockMode) {
   console.warn('Running in mock mode. Please add real Supabase credentials to your .env file for full functionality.')

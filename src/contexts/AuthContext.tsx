@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase, isMockMode } from '../lib/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -29,8 +29,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('🔧 AuthContext initializing, isMockMode:', isMockMode);
+    
+    if (isMockMode) {
+      // In mock mode, skip auth and immediately resolve loading
+      console.log('Running in mock mode - skipping authentication');
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
+    console.log('🔗 Connecting to real Supabase...');
+
     // Check if user is logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('📱 Initial session:', session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
@@ -39,6 +52,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('🔄 Auth state changed:', _event, session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
@@ -47,25 +61,67 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const signUp = async (email: string, password: string, userData?: any) => {
-    const { error } = await supabase.auth.signUp({
+    if (isMockMode) {
+      console.log('Mock sign up:', { email, userData });
+      return { error: null };
+    }
+    
+    console.log('🚀 Attempting Supabase sign up:', { email, userData });
+    
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: userData,
       },
     });
+    
+    console.log('📊 Supabase sign up result:', { 
+      data, 
+      error,
+      errorMessage: error?.message,
+      errorDetails: error 
+    });
+    
+    if (error) {
+      console.error('❌ Supabase signup error details:', error);
+    }
+    
     return { error };
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    if (isMockMode) {
+      console.log('Mock sign in:', { email });
+      return { error: null };
+    }
+    
+    console.log('🔑 Attempting Supabase sign in:', { email });
+    
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    
+    console.log('📊 Supabase sign in result:', { 
+      data, 
+      error,
+      errorMessage: error?.message,
+      errorDetails: error 
+    });
+    
+    if (error) {
+      console.error('❌ Supabase signin error details:', error);
+    }
+    
     return { error };
   };
 
   const signOut = async () => {
+    if (isMockMode) {
+      console.log('Mock sign out');
+      return;
+    }
     await supabase.auth.signOut();
   };
 

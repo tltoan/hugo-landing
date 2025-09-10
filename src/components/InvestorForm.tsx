@@ -1,13 +1,34 @@
 import React, { useState } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { theme } from '../styles/theme';
 import { submitToNetlify } from '../utils/netlifyForms';
+
+const slideUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const fadeIn = keyframes`
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+`;
 
 const FormContainer = styled.form`
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
   margin-top: 1rem;
+  animation: ${slideUp} 0.6s ease-out 0.1s backwards;
 `;
 
 const FormTitle = styled.h2`
@@ -16,12 +37,14 @@ const FormTitle = styled.h2`
   font-family: ${theme.fonts.header};
   margin-bottom: 0.5rem;
   text-align: center;
+  animation: ${slideUp} 0.5s ease-out 0.2s backwards;
 `;
 
 const FormGroup = styled.div`
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  animation: ${fadeIn} 0.4s ease-out 0.4s backwards;
 `;
 
 const Label = styled.label`
@@ -36,11 +59,13 @@ const Input = styled.input`
   border-radius: 10px;
   font-size: ${theme.fontSizes.button};
   background-color: ${theme.colors.white};
-  transition: border-color 0.3s ease;
+  transition: all 0.3s ease;
 
   &:focus {
     outline: none;
     border-color: ${theme.colors.primary};
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(65, 83, 120, 0.1);
   }
 
   &::placeholder {
@@ -54,12 +79,14 @@ const Select = styled.select`
   border-radius: 10px;
   font-size: ${theme.fontSizes.button};
   background-color: ${theme.colors.white};
-  transition: border-color 0.3s ease;
+  transition: all 0.3s ease;
   cursor: pointer;
 
   &:focus {
     outline: none;
     border-color: ${theme.colors.primary};
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(65, 83, 120, 0.1);
   }
 `;
 
@@ -74,6 +101,7 @@ const SubmitButton = styled.button`
   cursor: pointer;
   transition: all 0.3s ease;
   margin-top: 1rem;
+  animation: ${slideUp} 0.5s ease-out 0.6s backwards;
 
   &:hover {
     transform: translateY(-2px);
@@ -90,6 +118,7 @@ const ErrorMessage = styled.span`
   color: #e74c3c;
   font-size: 14px;
   margin-top: 0.25rem;
+  animation: ${slideUp} 0.3s ease-out;
 `;
 
 interface InvestorData {
