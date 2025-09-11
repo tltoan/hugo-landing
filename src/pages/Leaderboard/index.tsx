@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import { theme } from '../../styles/theme';
 import { useAuth } from '../../contexts/AuthContext';
+import Header from '../../components/shared/Header';
 
 const fadeInUp = keyframes`
   from {
@@ -18,59 +19,12 @@ const fadeInUp = keyframes`
 const PageContainer = styled.div`
   min-height: 100vh;
   background-color: ${theme.colors.background};
-  padding: 2rem;
-`;
-
-const Header = styled.header`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 3rem;
-  animation: ${fadeInUp} 0.6s ease-out;
-`;
-
-const Logo = styled.h1`
-  font-size: 32px;
-  color: ${theme.colors.primary};
-  font-family: ${theme.fonts.header};
-  margin: 0;
-  cursor: pointer;
-  
-  &:hover {
-    opacity: 0.8;
-  }
-`;
-
-const UserSection = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-`;
-
-const WelcomeText = styled.span`
-  color: ${theme.colors.text};
-  font-weight: 500;
-`;
-
-const LogoutButton = styled.button`
-  padding: 8px 16px;
-  background-color: transparent;
-  color: ${theme.colors.primary};
-  border: 2px solid ${theme.colors.primary};
-  border-radius: 20px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background-color: ${theme.colors.primary};
-    color: ${theme.colors.white};
-  }
 `;
 
 const Content = styled.main`
   max-width: 1000px;
   margin: 0 auto;
+  padding: 2rem;
 `;
 
 const PageTitle = styled.h2`
@@ -168,27 +122,12 @@ const mockLeaderboard = [
 ];
 
 const LeaderboardPage: React.FC = () => {
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
-
-  const handleSignOut = () => {
-    signOut();
-  };
-
-  const handleGoHome = () => {
-    navigate('/dashboard');
-  };
+  const { user } = useAuth();
 
   return (
     <PageContainer>
-      <Header>
-        <Logo onClick={handleGoHome}>Hugo</Logo>
-        <UserSection>
-          <WelcomeText>Welcome, {user?.email}</WelcomeText>
-          <LogoutButton onClick={handleSignOut}>Sign Out</LogoutButton>
-        </UserSection>
-      </Header>
-
+      <Header />
+      
       <Content>
         <PageTitle>🏆 Leaderboard</PageTitle>
         

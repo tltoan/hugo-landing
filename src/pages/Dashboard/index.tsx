@@ -1,8 +1,9 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import styled, { keyframes } from 'styled-components';
-import { theme } from '../../styles/theme';
-import { useAuth } from '../../contexts/AuthContext';
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import styled, { keyframes } from "styled-components";
+import { theme } from "../../styles/theme";
+import { useAuth } from "../../contexts/AuthContext";
+import { multiplayerService, MultiplayerGame } from "../../services/multiplayerService";
 
 const fadeInUp = keyframes`
   from {
@@ -25,15 +26,21 @@ const Header = styled.header`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 3rem;
-  animation: ${fadeInUp} 0.6s ease-out;
+  padding: 1rem 2rem;
+  margin: -2rem -2rem 3rem -2rem;
 `;
 
 const Logo = styled.h1`
-  font-size: 32px;
+  font-size: 50px;
   color: ${theme.colors.primary};
   font-family: ${theme.fonts.header};
   margin: 0;
+  cursor: pointer;
+  font-weight: normal;
+  
+  &:hover {
+    opacity: 0.8;
+  }
 `;
 
 const UserSection = styled.div`
@@ -45,6 +52,7 @@ const UserSection = styled.div`
 const WelcomeText = styled.span`
   color: ${theme.colors.text};
   font-weight: 500;
+  font-size: 14px;
 `;
 
 const LogoutButton = styled.button`
@@ -106,7 +114,8 @@ const FeatureCard = styled.div<{ delay?: number }>`
   box-shadow: 0 10px 30px rgba(65, 83, 120, 0.1);
   text-align: center;
   transition: all 0.3s ease;
-  animation: ${fadeInUp} 0.8s ease-out ${props => (props.delay || 0) * 0.1}s backwards;
+  animation: ${fadeInUp} 0.8s ease-out ${(props) => (props.delay || 0) * 0.1}s
+    backwards;
 
   &:hover {
     transform: translateY(-5px);
@@ -153,22 +162,35 @@ const FeatureButton = styled.button`
 const Dashboard: React.FC = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [activeGames, setActiveGames] = React.useState<MultiplayerGame[]>([]);
+
+  React.useEffect(() => {
+    const loadActiveGames = async () => {
+      try {
+        const games = await multiplayerService.getActiveGames();
+        setActiveGames(games);
+      } catch (error) {
+        console.error('Error loading active games:', error);
+      }
+    };
+
+    loadActiveGames();
+  }, []);
 
   const handleSignOut = () => {
     signOut();
   };
 
   const handleStartPracticing = () => {
-    navigate('/problems');
+    navigate("/problems");
   };
 
   const handleViewRankings = () => {
-    navigate('/leaderboard');
+    navigate("/leaderboard");
   };
 
   const handleJoinRace = () => {
-    // For now, open the original racing app in new tab
-    window.open('http://localhost:5176/', '_blank');
+    navigate("/multiplayer");
   };
 
   return (
@@ -183,12 +205,26 @@ const Dashboard: React.FC = () => {
 
       <Content>
         <WelcomeCard>
-          <WelcomeTitle>Welcome to Hugo Finance</WelcomeTitle>
+          <WelcomeTitle>Welcome to Hugo</WelcomeTitle>
           <WelcomeDescription>
-            Master financial modeling through interactive LBO exercises. 
-            Practice with real-world scenarios, compete on leaderboards, 
-            and track your progress as you become a finance expert.
+            Master financial modeling through interactive LBO exercises.
+            Practice with real-world scenarios, compete on leaderboards, and
+            track your progress as you become a finance expert.
           </WelcomeDescription>
+          {activeGames.length > 0 && (
+            <div style={{ 
+              marginTop: '1.5rem', 
+              padding: '1rem', 
+              backgroundColor: '#f0f8ff', 
+              borderRadius: '8px',
+              border: '1px solid #e3f2fd'
+            }}>
+              <strong style={{ color: theme.colors.primary }}>🎮 Live Multiplayer Activity</strong>
+              <p style={{ margin: '0.5rem 0 0 0', fontSize: '14px', color: theme.colors.text }}>
+                {activeGames.length} active multiplayer game{activeGames.length !== 1 ? 's' : ''} waiting for players
+              </p>
+            </div>
+          )}
         </WelcomeCard>
 
         <FeatureGrid>
@@ -196,30 +232,36 @@ const Dashboard: React.FC = () => {
             <FeatureIcon>📚</FeatureIcon>
             <FeatureTitle>Practice Problems</FeatureTitle>
             <FeatureDescription>
-              Access 15 carefully crafted LBO problems across 3 difficulty levels. 
-              From Paper LBOs to Advanced scenarios.
+              Access 5 carefully crafted LBO problems across 3 difficulty
+              levels. From Paper LBOs to Advanced scenarios. More to come.
             </FeatureDescription>
-            <FeatureButton onClick={handleStartPracticing}>Start Practicing</FeatureButton>
+            <FeatureButton onClick={handleStartPracticing}>
+              Start Practicing
+            </FeatureButton>
           </FeatureCard>
 
           <FeatureCard delay={5}>
             <FeatureIcon>🏆</FeatureIcon>
             <FeatureTitle>Leaderboard</FeatureTitle>
             <FeatureDescription>
-              Compete with other finance students. Track your ranking and 
-              see how you stack up globally.
+              Compete with other finance students. Track your ranking and see
+              how you stack up globally.
             </FeatureDescription>
-            <FeatureButton onClick={handleViewRankings}>View Rankings</FeatureButton>
+            <FeatureButton onClick={handleViewRankings}>
+              View Rankings
+            </FeatureButton>
           </FeatureCard>
 
           <FeatureCard delay={6}>
             <FeatureIcon>⚡</FeatureIcon>
             <FeatureTitle>Multiplayer Racing</FeatureTitle>
             <FeatureDescription>
-              Race against other players in real-time LBO competitions. 
-              Test your speed and accuracy.
+              Race against other players in real-time LBO competitions. Create games,
+              join existing races, and compete on global leaderboards.
             </FeatureDescription>
-            <FeatureButton onClick={handleJoinRace}>Join Race</FeatureButton>
+            <FeatureButton onClick={handleJoinRace}>
+              {activeGames.length > 0 ? 'Join Active Games' : 'Start Racing'}
+            </FeatureButton>
           </FeatureCard>
         </FeatureGrid>
       </Content>

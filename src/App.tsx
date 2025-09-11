@@ -9,6 +9,8 @@ import Dashboard from './pages/Dashboard';
 import ProblemsPage from './pages/Problems';
 import ProblemPage from './pages/Problem';
 import LeaderboardPage from './pages/Leaderboard';
+import MultiplayerPage from './pages/Multiplayer';
+import MultiplayerGamePage from './pages/MultiplayerGame';
 
 // Main App Router Component
 const AppRouter: React.FC = () => {
@@ -105,6 +107,18 @@ const AppRouter: React.FC = () => {
         path="/leaderboard" 
         element={
           user ? <LeaderboardPage /> : <Navigate to="/login" replace />
+        } 
+      />
+      <Route 
+        path="/multiplayer" 
+        element={
+          user ? <MultiplayerPage /> : <Navigate to="/login" replace />
+        } 
+      />
+      <Route 
+        path="/multiplayer/game/:gameId" 
+        element={
+          user ? <MultiplayerGamePage /> : <Navigate to="/login" replace />
         } 
       />
       
