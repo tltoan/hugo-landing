@@ -582,8 +582,82 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         intermediate: ["25% margin on Year 2 revenue"],
         advanced: ["EBITDA formula"]
       },
+      'E5': {
+        beginner: ["Year 3 EBITDA: =E4*0.25"],
+        intermediate: ["25% margin on Year 3 revenue"],
+        advanced: ["EBITDA formula"]
+      },
+      'F5': {
+        beginner: ["Year 4 EBITDA: =F4*0.25"],
+        intermediate: ["25% margin on Year 4 revenue"],
+        advanced: ["EBITDA formula"]
+      },
+      'G5': {
+        beginner: ["Year 5 EBITDA: =G4*0.25"],
+        intermediate: ["25% margin on Year 5 revenue"],
+        advanced: ["EBITDA formula"]
+      },
 
-      // Cash Flow Hints
+      // EBIT Hints (EBITDA - D&A)
+      'B7': {
+        beginner: ["LTM EBIT = EBITDA - D&A: =B5-B6"],
+        intermediate: ["Subtract D&A from EBITDA"],
+        advanced: ["EBIT calculation"]
+      },
+      'C7': {
+        beginner: ["Year 1 EBIT: =C5-B6"],
+        intermediate: ["EBITDA minus depreciation"],
+        advanced: ["EBIT formula"]
+      },
+      'D7': {
+        beginner: ["Year 2 EBIT: =D5-B6"],
+        intermediate: ["EBITDA minus depreciation"],
+        advanced: ["EBIT formula"]
+      },
+      'E7': {
+        beginner: ["Year 3 EBIT: =E5-B6"],
+        intermediate: ["EBITDA minus depreciation"],
+        advanced: ["EBIT formula"]
+      },
+      'F7': {
+        beginner: ["Year 4 EBIT: =F5-B6"],
+        intermediate: ["EBITDA minus depreciation"],
+        advanced: ["EBIT formula"]
+      },
+      'G7': {
+        beginner: ["Year 5 EBIT: =G5-B6"],
+        intermediate: ["EBITDA minus depreciation"],
+        advanced: ["EBIT formula"]
+      },
+
+      // Cash Flow EBITDA Reference Hints
+      'C14': {
+        beginner: ["Reference EBITDA for cash flow: =C5"],
+        intermediate: ["Link to EBITDA calculation"],
+        advanced: ["EBITDA reference"]
+      },
+      'D14': {
+        beginner: ["Year 2 EBITDA reference: =D5"],
+        intermediate: ["Link to EBITDA calculation"],
+        advanced: ["EBITDA reference"]
+      },
+      'E14': {
+        beginner: ["Year 3 EBITDA reference: =E5"],
+        intermediate: ["Link to EBITDA calculation"],
+        advanced: ["EBITDA reference"]
+      },
+      'F14': {
+        beginner: ["Year 4 EBITDA reference: =F5"],
+        intermediate: ["Link to EBITDA calculation"],
+        advanced: ["EBITDA reference"]
+      },
+      'G14': {
+        beginner: ["Year 5 EBITDA reference: =G5"],
+        intermediate: ["Link to EBITDA calculation"],
+        advanced: ["EBITDA reference"]
+      },
+
+      // Capex Hints
       'C15': {
         beginner: [
           "Capex is 3% of revenue each year",
@@ -593,6 +667,28 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         intermediate: ["Calculate capex as 3% of revenue"],
         advanced: ["Capex calculation"]
       },
+      'D15': {
+        beginner: ["Year 2 Capex: =D4*0.03"],
+        intermediate: ["3% of Year 2 revenue"],
+        advanced: ["Capex formula"]
+      },
+      'E15': {
+        beginner: ["Year 3 Capex: =E4*0.03"],
+        intermediate: ["3% of Year 3 revenue"],
+        advanced: ["Capex formula"]
+      },
+      'F15': {
+        beginner: ["Year 4 Capex: =F4*0.03"],
+        intermediate: ["3% of Year 4 revenue"],
+        advanced: ["Capex formula"]
+      },
+      'G15': {
+        beginner: ["Year 5 Capex: =G4*0.03"],
+        intermediate: ["3% of Year 5 revenue"],
+        advanced: ["Capex formula"]
+      },
+
+      // Free Cash Flow Hints
       'C17': {
         beginner: [
           "Free Cash Flow = EBITDA - Capex (working capital is 0)",
@@ -601,6 +697,118 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         ],
         intermediate: ["FCF = EBITDA - Capex - Working Capital"],
         advanced: ["Free cash flow formula"]
+      },
+      'D17': {
+        beginner: ["Year 2 FCF: =D14-D15"],
+        intermediate: ["EBITDA minus Capex"],
+        advanced: ["FCF formula"]
+      },
+      'E17': {
+        beginner: ["Year 3 FCF: =E14-E15"],
+        intermediate: ["EBITDA minus Capex"],
+        advanced: ["FCF formula"]
+      },
+      'F17': {
+        beginner: ["Year 4 FCF: =F14-F15"],
+        intermediate: ["EBITDA minus Capex"],
+        advanced: ["FCF formula"]
+      },
+      'G17': {
+        beginner: ["Year 5 FCF: =G14-G15"],
+        intermediate: ["EBITDA minus Capex"],
+        advanced: ["FCF formula"]
+      },
+
+      // Debt Schedule Hints
+      'C20': {
+        beginner: ["Beginning debt Year 1: =B20"],
+        intermediate: ["Reference initial debt"],
+        advanced: ["Debt carryforward"]
+      },
+      'D20': {
+        beginner: ["Beginning debt Year 2 = Previous ending debt: =C22"],
+        intermediate: ["Link to previous year ending debt"],
+        advanced: ["Debt schedule"]
+      },
+      'E20': {
+        beginner: ["Beginning debt Year 3: =D22"],
+        intermediate: ["Previous year ending debt"],
+        advanced: ["Debt schedule"]
+      },
+      'F20': {
+        beginner: ["Beginning debt Year 4: =E22"],
+        intermediate: ["Previous year ending debt"],
+        advanced: ["Debt schedule"]
+      },
+      'G20': {
+        beginner: ["Beginning debt Year 5: =F22"],
+        intermediate: ["Previous year ending debt"],
+        advanced: ["Debt schedule"]
+      },
+
+      // Debt Paydown Hints
+      'C21': {
+        beginner: ["All FCF goes to debt paydown: =C17"],
+        intermediate: ["Use free cash flow for debt reduction"],
+        advanced: ["Debt paydown"]
+      },
+      'D21': {
+        beginner: ["Year 2 debt paydown: =D17"],
+        intermediate: ["FCF to debt reduction"],
+        advanced: ["Debt paydown"]
+      },
+      'E21': {
+        beginner: ["Year 3 debt paydown: =E17"],
+        intermediate: ["FCF to debt reduction"],
+        advanced: ["Debt paydown"]
+      },
+      'F21': {
+        beginner: ["Year 4 debt paydown: =F17"],
+        intermediate: ["FCF to debt reduction"],
+        advanced: ["Debt paydown"]
+      },
+      'G21': {
+        beginner: ["Year 5 debt paydown: =G17"],
+        intermediate: ["FCF to debt reduction"],
+        advanced: ["Debt paydown"]
+      },
+
+      // Ending Debt Hints
+      'C22': {
+        beginner: ["Ending debt = Beginning - Paydown: =C20-C21"],
+        intermediate: ["Subtract paydown from beginning debt"],
+        advanced: ["Ending debt calculation"]
+      },
+      'D22': {
+        beginner: ["Year 2 ending debt: =D20-D21"],
+        intermediate: ["Beginning minus paydown"],
+        advanced: ["Ending debt"]
+      },
+      'E22': {
+        beginner: ["Year 3 ending debt: =E20-E21"],
+        intermediate: ["Beginning minus paydown"],
+        advanced: ["Ending debt"]
+      },
+      'F22': {
+        beginner: ["Year 4 ending debt: =F20-F21"],
+        intermediate: ["Beginning minus paydown"],
+        advanced: ["Ending debt"]
+      },
+      'G22': {
+        beginner: ["Year 5 ending debt: =G20-G21"],
+        intermediate: ["Beginning minus paydown"],
+        advanced: ["Ending debt"]
+      },
+
+      // Exit Valuation Hint
+      'G25': {
+        beginner: [
+          "Exit EV = Year 5 EBITDA × Exit Multiple",
+          "Multiply Year 5 EBITDA (G5) by 14",
+          "Enter: =G5*14"
+        ],
+        intermediate: ["Apply 14x exit multiple to Year 5 EBITDA"],
+        advanced: ["Exit valuation"]
       }
     };
 
@@ -715,8 +923,8 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         setShowHint({
           cellRef,
           text: hintText,
-          x: e.clientX,
-          y: e.clientY - 60
+          x: e.clientX - 10, // Slight offset from cursor
+          y: e.clientY + 20  // Always below the cell
         });
         
         // Track hint usage
