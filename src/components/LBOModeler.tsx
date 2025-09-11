@@ -176,17 +176,41 @@ const HeaderCell = styled.th`
   z-index: 1;
 `;
 
-const DataCell = styled.td<{ $isSelected?: boolean; $isCorrect?: boolean; $hasError?: boolean }>`
+const DataCell = styled.td<{ $isSelected?: boolean; $isCorrect?: boolean; $hasError?: boolean; $hasHint?: boolean }>`
   padding: 4px 8px;
   border: 1px solid rgba(65, 83, 120, 0.2);
   cursor: pointer;
   transition: all 0.2s ease;
+  position: relative;
   background-color: ${props => {
     if (props.$isSelected) return 'rgba(65, 83, 120, 0.1)';
     if (props.$isCorrect) return 'rgba(34, 197, 94, 0.1)';
     if (props.$hasError) return 'rgba(239, 68, 68, 0.1)';
     return 'white';
   }};
+  
+  ${props => props.$hasHint && `
+    border-color: rgba(59, 130, 246, 0.4);
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
+    
+    &::after {
+      content: "?";
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 12px;
+      height: 12px;
+      background: rgba(59, 130, 246, 0.8);
+      color: white;
+      border-radius: 50%;
+      font-size: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      pointer-events: none;
+    }
+  `}
 
   &:hover {
     background-color: rgba(65, 83, 120, 0.05);
@@ -252,6 +276,31 @@ const CompletionButton = styled.button`
   }
 `;
 
+const HintTooltip = styled.div`
+  position: fixed;
+  background: ${theme.colors.primary};
+  color: white;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  max-width: 300px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: 20px;
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 5px solid ${theme.colors.primary};
+  }
+`;
+
 interface Cell {
   value: string;
   formula: string;
@@ -275,6 +324,8 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
   const [score, setScore] = useState(0);
   const [completedCells, setCompletedCells] = useState<Set<string>>(new Set());
   const [showCompletionPopup, setShowCompletionPopup] = useState(false);
+  const [showHint, setShowHint] = useState<{cellRef: string; text: string; x: number; y: number} | null>(null);
+  const [hintUsage, setHintUsage] = useState<Record<string, number>>({});
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -355,6 +406,14 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         ...initialCells[cellId],
         ...data
       };
+    });
+
+    // Mark cells that can have hints
+    const hintableCells = markCellsWithHints();
+    hintableCells.forEach(cellId => {
+      if (initialCells[cellId] && !initialCells[cellId].isLocked) {
+        initialCells[cellId].hasHint = true;
+      }
     });
 
     setCells(initialCells);
@@ -468,6 +527,109 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     );
   };
 
+  const getHintText = (cellRef: string, difficulty: string = 'beginner', attemptNumber: number = 0): string | null => {
+    const hints: Record<string, Record<string, string[]>> = {
+      // Revenue Growth Hints
+      'C4': {
+        beginner: [
+          "This cell needs Year 1 revenue. Use 10% growth from LTM revenue.",
+          "Multiply the LTM revenue (B4) by 1.1 for 10% growth",
+          "Enter: =B4*1.1"
+        ],
+        intermediate: [
+          "Calculate Year 1 revenue with 10% growth",
+          "Formula: Previous year × (1 + growth rate)"
+        ],
+        advanced: ["Revenue projection needed"]
+      },
+      'D4': {
+        beginner: [
+          "Year 2 revenue: Apply 10% growth to Year 1 revenue",
+          "Use the Year 1 revenue (C4) and multiply by 1.1",
+          "Enter: =C4*1.1"
+        ],
+        intermediate: ["Apply 10% growth to previous year"],
+        advanced: ["Revenue growth formula"]
+      },
+      'E4': {
+        beginner: ["Year 3 revenue: =D4*1.1"],
+        intermediate: ["Continue 10% growth pattern"],
+        advanced: ["Revenue projection"]
+      },
+      'F4': {
+        beginner: ["Year 4 revenue: =E4*1.1"],
+        intermediate: ["Continue growth trend"],
+        advanced: ["Revenue calculation"]
+      },
+      'G4': {
+        beginner: ["Year 5 revenue: =F4*1.1"],
+        intermediate: ["Final year growth"],
+        advanced: ["Revenue formula"]
+      },
+
+      // EBITDA Hints
+      'C5': {
+        beginner: [
+          "Calculate EBITDA using 25% margin on revenue",
+          "Multiply Year 1 revenue (C4) by 0.25",
+          "Enter: =C4*0.25"
+        ],
+        intermediate: ["Apply 25% EBITDA margin to revenue"],
+        advanced: ["EBITDA calculation"]
+      },
+      'D5': {
+        beginner: ["Year 2 EBITDA: =D4*0.25"],
+        intermediate: ["25% margin on Year 2 revenue"],
+        advanced: ["EBITDA formula"]
+      },
+
+      // Cash Flow Hints
+      'C15': {
+        beginner: [
+          "Capex is 3% of revenue each year",
+          "Multiply Year 1 revenue (C4) by 0.03",
+          "Enter: =C4*0.03"
+        ],
+        intermediate: ["Calculate capex as 3% of revenue"],
+        advanced: ["Capex calculation"]
+      },
+      'C17': {
+        beginner: [
+          "Free Cash Flow = EBITDA - Capex (working capital is 0)",
+          "Subtract capex (C15) from EBITDA (C14)",
+          "Enter: =C14-C15"
+        ],
+        intermediate: ["FCF = EBITDA - Capex - Working Capital"],
+        advanced: ["Free cash flow formula"]
+      }
+    };
+
+    const cellHints = hints[cellRef];
+    if (!cellHints) return null;
+
+    const difficultyHints = cellHints[difficulty];
+    if (!difficultyHints) return cellHints['beginner']?.[0] || null;
+
+    return difficultyHints[Math.min(attemptNumber, difficultyHints.length - 1)] || null;
+  };
+
+  const markCellsWithHints = () => {
+    const hintableCells = [
+      'C4', 'D4', 'E4', 'F4', 'G4', // Revenue
+      'C5', 'D5', 'E5', 'F5', 'G5', // EBITDA  
+      'B7', 'C7', 'D7', 'E7', 'F7', 'G7', // EBIT
+      'C14', 'D14', 'E14', 'F14', 'G14', // Cash flow EBITDA
+      'C15', 'D15', 'E15', 'F15', 'G15', // Capex
+      'C17', 'D17', 'E17', 'F17', 'G17', // FCF
+      'C20', 'D20', 'E20', 'F20', 'G20', // Beginning debt
+      'C21', 'D21', 'E21', 'F21', 'G21', // Debt paydown
+      'C22', 'D22', 'E22', 'F22', 'G22', // Ending debt
+      'G25' // Exit EV
+    ];
+
+    return hintableCells;
+  };
+
   const handleCellClick = (col: number, row: number) => {
     setSelectedCell({ col, row });
     const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
@@ -538,6 +700,44 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     navigate('/problems');
   };
 
+  const handleCellRightClick = (e: React.MouseEvent, col: number, row: number) => {
+    e.preventDefault(); // Prevent browser context menu
+    
+    const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+    const cell = cells[cellRef];
+    
+    if (cell?.hasHint && !cell.isLocked) {
+      const difficulty = 'beginner'; // TODO: Get from problem difficulty
+      const attemptCount = hintUsage[cellRef] || 0;
+      const hintText = getHintText(cellRef, difficulty, attemptCount);
+      
+      if (hintText) {
+        setShowHint({
+          cellRef,
+          text: hintText,
+          x: e.clientX,
+          y: e.clientY - 60
+        });
+        
+        // Track hint usage
+        setHintUsage(prev => ({
+          ...prev,
+          [cellRef]: attemptCount + 1
+        }));
+        
+        // Reduce score for using hints
+        setScore(prev => Math.max(0, prev - 25));
+        
+        // Hide hint after 5 seconds
+        setTimeout(() => setShowHint(null), 5000);
+      }
+    }
+  };
+
+  const handleClickOutside = () => {
+    setShowHint(null);
+  };
+
   const renderCell = (col: number, row: number) => {
     const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
     const cell = cells[cellRef];
@@ -548,7 +748,9 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         key={cellRef}
         $isSelected={isSelected}
         $isCorrect={completedCells.has(cellRef)}
+        $hasHint={cell?.hasHint && !cell?.isLocked && !completedCells.has(cellRef)}
         onClick={() => handleCellClick(col, row)}
+        onContextMenu={(e) => handleCellRightClick(e, col, row)}
       >
         {cell?.isLocked ? (
           cell.value
@@ -564,7 +766,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
   };
 
   return (
-    <LBOContainer>
+    <LBOContainer onClick={handleClickOutside}>
       <Header>
         <Logo onClick={handleGoHome}>Hugo</Logo>
         <HeaderActions>
@@ -738,6 +940,18 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           </div>
         )}
       </ModelingInterface>
+
+      {/* Hint Tooltip */}
+      {showHint && (
+        <HintTooltip
+          style={{
+            left: showHint.x,
+            top: showHint.y
+          }}
+        >
+          {showHint.text}
+        </HintTooltip>
+      )}
 
       <AnimatePresence>
         {showCompletionPopup && (
