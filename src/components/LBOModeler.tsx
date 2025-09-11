@@ -276,17 +276,18 @@ const CompletionButton = styled.button`
   }
 `;
 
-const HintTooltip = styled.div`
+const HintTooltip = styled.div<{ $isError?: boolean }>`
   position: fixed;
-  background: ${theme.colors.primary};
+  background: ${props => props.$isError ? '#ef4444' : theme.colors.primary};
   color: white;
   padding: 12px 16px;
   border-radius: 8px;
   font-size: 14px;
-  max-width: 300px;
+  max-width: 350px;
   z-index: 1000;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   pointer-events: none;
+  border: ${props => props.$isError ? '2px solid #dc2626' : 'none'};
   
   &::before {
     content: '';
@@ -297,7 +298,7 @@ const HintTooltip = styled.div`
     height: 0;
     border-left: 5px solid transparent;
     border-right: 5px solid transparent;
-    border-bottom: 5px solid ${theme.colors.primary};
+    border-bottom: 5px solid ${props => props.$isError ? '#ef4444' : theme.colors.primary};
   }
 `;
 
@@ -324,7 +325,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
   const [score, setScore] = useState(0);
   const [completedCells, setCompletedCells] = useState<Set<string>>(new Set());
   const [showCompletionPopup, setShowCompletionPopup] = useState(false);
-  const [showHint, setShowHint] = useState<{cellRef: string; text: string; x: number; y: number} | null>(null);
+  const [showHint, setShowHint] = useState<{cellRef: string; text: string; x: number; y: number; isError?: boolean} | null>(null);
   const [hintUsage, setHintUsage] = useState<Record<string, number>>({});
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -525,6 +526,74 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     return acceptableFormulas.some(valid => 
       valid.toUpperCase().replace(/\s/g, '') === normalizedInput
     );
+  };
+
+  // Generate smart error hints based on what the user entered incorrectly
+  const getErrorHint = (cellRef: string, incorrectFormula: string): string => {
+    const errorHints: Record<string, (input: string) => string> = {
+      'C4': (input) => {
+        if (input.includes('=B4*0.1')) return "You're calculating 10% of revenue, not 110%. Try =B4*1.1 for 10% growth.";
+        if (input.includes('=B4+0.1')) return "Growth is multiplicative, not additive. Use =B4*1.1 for 10% growth.";
+        if (!input.includes('B4')) return "Year 1 revenue should reference LTM revenue (B4). Try =B4*1.1";
+        if (input.includes('=10') || input.match(/=\d+/)) return "Use a formula, not a hard number. Reference B4 and multiply by 1.1";
+        return "Year 1 revenue needs 10% growth from LTM revenue. Try =B4*1.1";
+      },
+      'C5': (input) => {
+        if (input.includes('=C4*0.25')) return "Correct formula! Make sure it's exactly =C4*0.25";
+        if (!input.includes('C4')) return "EBITDA should reference Year 1 revenue (C4). Try =C4*0.25";
+        if (input.includes('*0.20') || input.includes('*20%')) return "EBITDA margin is 25%, not 20%. Try =C4*0.25";
+        if (input.includes('*0.30') || input.includes('*30%')) return "EBITDA margin is 25%, not 30%. Try =C4*0.25";
+        return "EBITDA is 25% of revenue. Try =C4*0.25";
+      },
+      'C7': (input) => {
+        if (!input.includes('C5')) return "EBIT should reference EBITDA (C5). Try =C5-B6";
+        if (!input.includes('-')) return "EBIT = EBITDA minus D&A. Try =C5-B6";
+        if (input.includes('-2')) return "Reference the D&A cell (B6) instead of hard-coding. Try =C5-B6";
+        return "EBIT = EBITDA - D&A. Try =C5-B6";
+      },
+      'C15': (input) => {
+        if (!input.includes('C4')) return "Capex should reference Year 1 revenue (C4). Try =C4*0.03";
+        if (input.includes('*0.30') || input.includes('*30%')) return "Capex is 3%, not 30%. Try =C4*0.03";
+        if (input.includes('*0.05') || input.includes('*5%')) return "Capex is 3%, not 5%. Try =C4*0.03";
+        return "Capex is 3% of revenue. Try =C4*0.03";
+      },
+      'C17': (input) => {
+        if (!input.includes('C14')) return "FCF should start with EBITDA (C14). Try =C14-C15";
+        if (!input.includes('-')) return "FCF = EBITDA minus Capex. Try =C14-C15";
+        if (!input.includes('C15')) return "Don't forget to subtract Capex (C15). Try =C14-C15";
+        return "Free Cash Flow = EBITDA - Capex. Try =C14-C15";
+      },
+      'C20': (input) => {
+        if (!input.includes('B20')) return "Beginning debt should reference initial debt (B20). Try =B20";
+        return "Year 1 beginning debt equals initial debt. Try =B20";
+      },
+      'C21': (input) => {
+        if (!input.includes('C17')) return "All FCF goes to debt paydown. Reference FCF (C17). Try =C17";
+        return "All free cash flow pays down debt. Try =C17";
+      },
+      'C22': (input) => {
+        if (!input.includes('C20')) return "Ending debt should reference beginning debt (C20). Try =C20-C21";
+        if (!input.includes('C21')) return "Don't forget to subtract paydown (C21). Try =C20-C21";
+        if (!input.includes('-')) return "Ending debt = Beginning debt minus paydown. Try =C20-C21";
+        return "Ending debt = Beginning debt - Paydown. Try =C20-C21";
+      },
+      'G25': (input) => {
+        if (!input.includes('G5')) return "Exit valuation should use Year 5 EBITDA (G5). Try =G5*14";
+        if (!input.includes('14')) return "Exit multiple is 14x. Try =G5*14";
+        if (input.includes('*12')) return "Exit multiple is 14x, not 12x. Try =G5*14";
+        return "Exit valuation = Year 5 EBITDA × 14x multiple. Try =G5*14";
+      }
+    };
+
+    // Get pattern for similar cells (D4, E4, etc.)
+    const baseCell = cellRef.replace(/[D-G]/, 'C');
+    const errorHintFn = errorHints[baseCell] || errorHints[cellRef];
+    
+    if (errorHintFn) {
+      return errorHintFn(incorrectFormula);
+    }
+    
+    return `Incorrect formula for ${cellRef}. Right-click for a hint!`;
   };
 
   const getHintText = (cellRef: string, difficulty: string = 'beginner', attemptNumber: number = 0): string | null => {
@@ -845,6 +914,99 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     setFormulaBarValue(cell?.formula || '');
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent, col: number, row: number) => {
+    const maxCols = 7; // A through G
+    const maxRows = 25; // Up to row 25
+    
+    switch (e.key) {
+      case 'Enter':
+        e.preventDefault();
+        // Move down one cell, or commit edit if editing
+        if (row < maxRows - 1) {
+          setSelectedCell({ col, row: row + 1 });
+          const newCellRef = `${String.fromCharCode(65 + col)}${row + 2}`;
+          const newCell = cells[newCellRef];
+          setFormulaBarValue(newCell?.formula || '');
+        }
+        break;
+        
+      case 'Tab':
+        e.preventDefault();
+        // Move right one cell
+        if (col < maxCols - 1) {
+          setSelectedCell({ col: col + 1, row });
+          const newCellRef = `${String.fromCharCode(65 + col + 1)}${row + 1}`;
+          const newCell = cells[newCellRef];
+          setFormulaBarValue(newCell?.formula || '');
+        } else if (row < maxRows - 1) {
+          // Wrap to next row
+          setSelectedCell({ col: 0, row: row + 1 });
+          const newCellRef = `A${row + 2}`;
+          const newCell = cells[newCellRef];
+          setFormulaBarValue(newCell?.formula || '');
+        }
+        break;
+        
+      case 'ArrowUp':
+        e.preventDefault();
+        if (row > 0) {
+          setSelectedCell({ col, row: row - 1 });
+          const newCellRef = `${String.fromCharCode(65 + col)}${row}`;
+          const newCell = cells[newCellRef];
+          setFormulaBarValue(newCell?.formula || '');
+        }
+        break;
+        
+      case 'ArrowDown':
+        e.preventDefault();
+        if (row < maxRows - 1) {
+          setSelectedCell({ col, row: row + 1 });
+          const newCellRef = `${String.fromCharCode(65 + col)}${row + 2}`;
+          const newCell = cells[newCellRef];
+          setFormulaBarValue(newCell?.formula || '');
+        }
+        break;
+        
+      case 'ArrowLeft':
+        e.preventDefault();
+        if (col > 0) {
+          setSelectedCell({ col: col - 1, row });
+          const newCellRef = `${String.fromCharCode(65 + col - 1)}${row + 1}`;
+          const newCell = cells[newCellRef];
+          setFormulaBarValue(newCell?.formula || '');
+        }
+        break;
+        
+      case 'ArrowRight':
+        e.preventDefault();
+        if (col < maxCols - 1) {
+          setSelectedCell({ col: col + 1, row });
+          const newCellRef = `${String.fromCharCode(65 + col + 1)}${row + 1}`;
+          const newCell = cells[newCellRef];
+          setFormulaBarValue(newCell?.formula || '');
+        }
+        break;
+        
+      case 'Escape':
+        e.preventDefault();
+        // Cancel editing, restore original value
+        const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+        const cell = cells[cellRef];
+        setFormulaBarValue(cell?.formula || '');
+        break;
+        
+      case 'F2':
+        e.preventDefault();
+        // Focus on formula bar for editing
+        const formulaInput = document.querySelector('input[type="text"]') as HTMLInputElement;
+        if (formulaInput) {
+          formulaInput.focus();
+          formulaInput.select();
+        }
+        break;
+    }
+  };
+
   const handleCellChange = (col: number, row: number, value: string) => {
     const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
     const newCells = { ...cells };
@@ -868,8 +1030,20 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         if (validateFormula(cellRef, value)) {
           newCompleted.add(cellRef);
           setScore(prev => prev + 100); // Higher score for correct formulas
+          setShowHint(null); // Clear any existing error hints
         } else {
           newCompleted.delete(cellRef);
+          // Show smart error hint automatically
+          const errorHintText = getErrorHint(cellRef, value);
+          setShowHint({
+            cellRef,
+            text: errorHintText,
+            x: 400, // Center of screen since we don't have mouse position
+            y: 300,
+            isError: true
+          });
+          // Auto-hide error hint after 8 seconds (longer than regular hints)
+          setTimeout(() => setShowHint(null), 8000);
         }
       } else {
         // Hard-coded value - check if it's a valid expected result
@@ -959,6 +1133,8 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         $hasHint={cell?.hasHint && !cell?.isLocked && !completedCells.has(cellRef)}
         onClick={() => handleCellClick(col, row)}
         onContextMenu={(e) => handleCellRightClick(e, col, row)}
+        tabIndex={0}
+        onKeyDown={(e) => handleKeyDown(e, col, row)}
       >
         {cell?.isLocked ? (
           cell.value
@@ -967,6 +1143,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
             value={cell?.value || ''}
             onChange={(e) => handleCellChange(col, row, e.target.value)}
             onFocus={() => handleCellClick(col, row)}
+            onKeyDown={(e) => handleKeyDown(e, col, row)}
           />
         )}
       </DataCell>
@@ -1064,6 +1241,20 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
                 value={formulaBarValue}
                 onChange={(e) => setFormulaBarValue(e.target.value)}
                 placeholder="Enter formula or value..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && selectedCell) {
+                    e.preventDefault();
+                    handleCellChange(selectedCell.col, selectedCell.row, formulaBarValue);
+                    // Move down one cell after Enter in formula bar
+                    if (selectedCell.row < 24) {
+                      const newRow = selectedCell.row + 1;
+                      setSelectedCell({ col: selectedCell.col, row: newRow });
+                      const newCellRef = `${String.fromCharCode(65 + selectedCell.col)}${newRow + 1}`;
+                      const newCell = cells[newCellRef];
+                      setFormulaBarValue(newCell?.formula || '');
+                    }
+                  }
+                }}
               />
             </FormulaBar>
 
@@ -1152,6 +1343,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       {/* Hint Tooltip */}
       {showHint && (
         <HintTooltip
+          $isError={showHint.isError}
           style={{
             left: showHint.x,
             top: showHint.y
