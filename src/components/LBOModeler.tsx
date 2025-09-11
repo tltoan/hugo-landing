@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import { theme } from '../styles/theme';
+import { evaluateFormula } from '../utils/formulaParser';
 
 const fadeIn = keyframes`
   from {
@@ -377,6 +378,96 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     return totalCells > 0 ? Math.round((completedCount / totalCells) * 100) : 0;
   };
 
+  const getCellValue = useCallback((cellRef: string): number | string | null => {
+    const cell = cells[cellRef];
+    if (!cell || !cell.value) return 0;  // Empty cells return 0, like Excel
+    
+    if (cell.formula && cell.formula.startsWith('=')) {
+      return evaluateFormula(cell.formula, getCellValue);
+    }
+    
+    const num = parseFloat(cell.value);
+    return isNaN(num) ? 0 : num;  // Non-numeric values also return 0
+  }, [cells]);
+
+  const validateFormula = (cellId: string, formula: string): boolean => {
+    const validFormulas: Record<string, string[]> = {
+      // Revenue projections (10% growth)
+      'C4': ['=B4*1.1', '=B4*(1+0.1)', '=B4*1.10'],
+      'D4': ['=C4*1.1', '=C4*(1+0.1)', '=C4*1.10'],
+      'E4': ['=D4*1.1', '=D4*(1+0.1)', '=D4*1.10'],
+      'F4': ['=E4*1.1', '=E4*(1+0.1)', '=E4*1.10'],
+      'G4': ['=F4*1.1', '=F4*(1+0.1)', '=F4*1.10'],
+      
+      // EBITDA calculations (25% margin)
+      'C5': ['=C4*0.25', '=C4*25%', '=C4*0.25'],
+      'D5': ['=D4*0.25', '=D4*25%', '=D4*0.25'],
+      'E5': ['=E4*0.25', '=E4*25%', '=E4*0.25'],
+      'F5': ['=F4*0.25', '=F4*25%', '=F4*0.25'],
+      'G5': ['=G4*0.25', '=G4*25%', '=G4*0.25'],
+
+      // EBIT calculations (EBITDA - D&A)
+      'B7': ['=B5-B6', '=B5-2', '=B5-2.0'],
+      'C7': ['=C5-B6', '=C5-2', '=C5-2.0'],
+      'D7': ['=D5-B6', '=D5-2', '=D5-2.0'],
+      'E7': ['=E5-B6', '=E5-2', '=E5-2.0'],
+      'F7': ['=F5-B6', '=F5-2', '=F5-2.0'],
+      'G7': ['=G5-B6', '=G5-2', '=G5-2.0'],
+
+      // Cash Flow - EBITDA reference
+      'C14': ['=C5', '=C14'],
+      'D14': ['=D5', '=D14'],
+      'E14': ['=E5', '=E14'],
+      'F14': ['=F5', '=F14'],
+      'G14': ['=G5', '=G14'],
+
+      // Cash Flow - Capex (3% of revenue)
+      'C15': ['=C4*0.03', '=C4*3%', '=C4*0.03'],
+      'D15': ['=D4*0.03', '=D4*3%', '=D4*0.03'],
+      'E15': ['=E4*0.03', '=E4*3%', '=E4*0.03'],
+      'F15': ['=F4*0.03', '=F4*3%', '=F4*0.03'],
+      'G15': ['=G4*0.03', '=G4*3%', '=G4*0.03'],
+
+      // Free Cash Flow (EBITDA - Capex - WC, WC=0)
+      'C17': ['=C14-C15', '=C14-C15-C16', '=C5-C15'],
+      'D17': ['=D14-D15', '=D14-D15-D16', '=D5-D15'],
+      'E17': ['=E14-E15', '=E14-E15-E16', '=E5-E15'],
+      'F17': ['=F14-F15', '=F14-F15-F16', '=F5-F15'],
+      'G17': ['=G14-G15', '=G14-G15-G16', '=G5-G15'],
+
+      // Debt Schedule - Beginning Debt
+      'C20': ['=B20', '=87.5'],
+      'D20': ['=C22'],
+      'E20': ['=D22'],
+      'F20': ['=E22'],
+      'G20': ['=F22'],
+
+      // FCF to Debt Paydown
+      'C21': ['=C17'],
+      'D21': ['=D17'],
+      'E21': ['=E17'],
+      'F21': ['=F17'],
+      'G21': ['=G17'],
+
+      // Ending Debt
+      'C22': ['=C20-C21'],
+      'D22': ['=D20-D21'],
+      'E22': ['=E20-E21'],
+      'F22': ['=F20-F21'],
+      'G22': ['=G20-G21'],
+
+      // Exit EV (14x Year 5 EBITDA)
+      'G25': ['=G5*14', '=14*G5']
+    };
+
+    const acceptableFormulas = validFormulas[cellId] || [];
+    const normalizedInput = formula.toUpperCase().replace(/\s/g, '');
+    
+    return acceptableFormulas.some(valid => 
+      valid.toUpperCase().replace(/\s/g, '') === normalizedInput
+    );
+  };
+
   const handleCellClick = (col: number, row: number) => {
     setSelectedCell({ col, row });
     const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
@@ -396,13 +487,41 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       };
       setCells(newCells);
       
-      // Simple validation - in a real app this would be more sophisticated
-      if (value && value.trim() !== '') {
-        const newCompleted = new Set(completedCells);
-        newCompleted.add(cellRef);
-        setCompletedCells(newCompleted);
-        setScore(prev => prev + 10);
+      // Proper validation logic
+      const newCompleted = new Set(completedCells);
+      
+      if (!value || value.trim() === '') {
+        // Clear cell - remove from completed
+        newCompleted.delete(cellRef);
+      } else if (value.startsWith('=')) {
+        // Formula validation
+        if (validateFormula(cellRef, value)) {
+          newCompleted.add(cellRef);
+          setScore(prev => prev + 100); // Higher score for correct formulas
+        } else {
+          newCompleted.delete(cellRef);
+        }
+      } else {
+        // Hard-coded value - check if it's a valid expected result
+        const expectedValues: Record<string, number> = {
+          // Entry valuation calculations
+          'B6': 150.0,  // 12.5 * 12 = Entry EV
+          'B7': 87.5,   // 12.5 * 7 = Total Debt  
+          'B8': 62.5,   // 150 - 87.5 = Equity Check
+        };
+        
+        const numValue = parseFloat(value);
+        const expected = expectedValues[cellRef];
+        
+        if (expected !== undefined && Math.abs(numValue - expected) < 0.1) {
+          newCompleted.add(cellRef);
+          setScore(prev => prev + 50); // Lower score for hard-coded values
+        } else {
+          newCompleted.delete(cellRef);
+        }
       }
+      
+      setCompletedCells(newCompleted);
     }
   };
 
