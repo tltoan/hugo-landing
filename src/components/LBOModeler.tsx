@@ -398,7 +398,10 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       // Returns Analysis
       'A23': { value: '', isLocked: true },
       'A24': { value: '━━━ RETURNS ━━━', isLocked: true },
-      'A25': { value: 'Exit EV ($M)', isLocked: true }
+      'A25': { value: 'Exit EV ($M)', isLocked: true },
+      'A26': { value: 'Exit Equity ($M)', isLocked: true },
+      'A27': { value: 'MOIC (Multiple)', isLocked: true },
+      'A28': { value: 'IRR (%)', isLocked: true }
     };
 
     // Apply locked cells
@@ -517,7 +520,16 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       'G22': ['=G20-G21'],
 
       // Exit EV (14x Year 5 EBITDA)
-      'G25': ['=G5*14', '=14*G5']
+      'G25': ['=G5*14', '=14*G5'],
+
+      // Exit Equity (Exit EV - Final Debt)
+      'G26': ['=G25-G22'],
+
+      // MOIC (Exit Equity / Initial Equity Investment)
+      'G27': ['=G26/62.5', '=G26/B8'],
+
+      // IRR (approximation using simple formula)
+      'G28': ['=(G26/62.5)^(1/5)-1', '=((G26/62.5)^0.2)-1', '=(G27^0.2)-1']
     };
 
     const acceptableFormulas = validFormulas[cellId] || [];
@@ -582,6 +594,24 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         if (!input.includes('14')) return "Exit multiple is 14x. Try =G5*14";
         if (input.includes('*12')) return "Exit multiple is 14x, not 12x. Try =G5*14";
         return "Exit valuation = Year 5 EBITDA × 14x multiple. Try =G5*14";
+      },
+      'G26': (input) => {
+        if (!input.includes('G25')) return "Exit equity should reference exit EV (G25). Try =G25-G22";
+        if (!input.includes('G22')) return "Don't forget to subtract final debt (G22). Try =G25-G22";
+        if (!input.includes('-')) return "Exit equity = Exit EV minus final debt. Try =G25-G22";
+        return "Exit equity = Exit EV - Final debt. Try =G25-G22";
+      },
+      'G27': (input) => {
+        if (!input.includes('G26')) return "MOIC should reference exit equity (G26). Try =G26/62.5";
+        if (!input.includes('/')) return "MOIC = Exit equity divided by initial equity. Try =G26/62.5";
+        if (!input.includes('62.5') && !input.includes('B8')) return "Initial equity is $62.5M. Try =G26/62.5";
+        return "MOIC = Exit equity ÷ Initial equity investment. Try =G26/62.5";
+      },
+      'G28': (input) => {
+        if (!input.includes('G27') && !input.includes('G26')) return "IRR should use MOIC (G27) or exit equity (G26). Try =(G27^0.2)-1";
+        if (!input.includes('^') && !input.includes('**')) return "IRR uses exponentiation. Try =(G27^0.2)-1";
+        if (!input.includes('0.2') && !input.includes('1/5')) return "5-year investment, so use power of 0.2. Try =(G27^0.2)-1";
+        return "IRR = (MOIC^(1/5)) - 1. Try =(G27^0.2)-1";
       }
     };
 
@@ -878,6 +908,39 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         ],
         intermediate: ["Apply 14x exit multiple to Year 5 EBITDA"],
         advanced: ["Exit valuation"]
+      },
+
+      // Exit Equity Hints
+      'G26': {
+        beginner: [
+          "Exit Equity = Exit EV - Final Debt",
+          "Subtract final debt (G22) from exit EV (G25)",
+          "Enter: =G25-G22"
+        ],
+        intermediate: ["Exit equity value after debt paydown"],
+        advanced: ["Exit equity calculation"]
+      },
+
+      // MOIC Hints
+      'G27': {
+        beginner: [
+          "MOIC = Exit Equity ÷ Initial Equity Investment",
+          "Divide exit equity (G26) by initial equity ($62.5M)",
+          "Enter: =G26/62.5"
+        ],
+        intermediate: ["Multiple on Invested Capital calculation"],
+        advanced: ["MOIC formula"]
+      },
+
+      // IRR Hints
+      'G28': {
+        beginner: [
+          "IRR = (Exit Multiple)^(1/Years) - 1",
+          "Use MOIC (G27) raised to power of 1/5 minus 1",
+          "Enter: =(G27^0.2)-1"
+        ],
+        intermediate: ["Internal Rate of Return approximation"],
+        advanced: ["IRR calculation"]
       }
     };
 
@@ -901,7 +964,10 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       'C20', 'D20', 'E20', 'F20', 'G20', // Beginning debt
       'C21', 'D21', 'E21', 'F21', 'G21', // Debt paydown
       'C22', 'D22', 'E22', 'F22', 'G22', // Ending debt
-      'G25' // Exit EV
+      'G25', // Exit EV
+      'G26', // Exit Equity  
+      'G27', // MOIC
+      'G28'  // IRR
     ];
 
     return hintableCells;
@@ -914,6 +980,18 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     setFormulaBarValue(cell?.formula || '');
   };
 
+  const focusCellInput = (col: number, row: number) => {
+    // Use setTimeout to ensure the DOM has updated
+    setTimeout(() => {
+      const newCellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+      const cellInput = document.querySelector(`[data-cell="${newCellRef}"] input`) as HTMLInputElement;
+      if (cellInput) {
+        cellInput.focus();
+        cellInput.select();
+      }
+    }, 0);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent, col: number, row: number) => {
     const maxCols = 7; // A through G
     const maxRows = 25; // Up to row 25
@@ -923,10 +1001,12 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         e.preventDefault();
         // Move down one cell, or commit edit if editing
         if (row < maxRows - 1) {
-          setSelectedCell({ col, row: row + 1 });
-          const newCellRef = `${String.fromCharCode(65 + col)}${row + 2}`;
+          const newRow = row + 1;
+          setSelectedCell({ col, row: newRow });
+          const newCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
           const newCell = cells[newCellRef];
           setFormulaBarValue(newCell?.formula || '');
+          focusCellInput(col, newRow);
         }
         break;
         
@@ -934,56 +1014,68 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         e.preventDefault();
         // Move right one cell
         if (col < maxCols - 1) {
-          setSelectedCell({ col: col + 1, row });
-          const newCellRef = `${String.fromCharCode(65 + col + 1)}${row + 1}`;
+          const newCol = col + 1;
+          setSelectedCell({ col: newCol, row });
+          const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
           const newCell = cells[newCellRef];
           setFormulaBarValue(newCell?.formula || '');
+          focusCellInput(newCol, row);
         } else if (row < maxRows - 1) {
           // Wrap to next row
-          setSelectedCell({ col: 0, row: row + 1 });
-          const newCellRef = `A${row + 2}`;
+          const newRow = row + 1;
+          setSelectedCell({ col: 0, row: newRow });
+          const newCellRef = `A${newRow + 1}`;
           const newCell = cells[newCellRef];
           setFormulaBarValue(newCell?.formula || '');
+          focusCellInput(0, newRow);
         }
         break;
         
       case 'ArrowUp':
         e.preventDefault();
         if (row > 0) {
-          setSelectedCell({ col, row: row - 1 });
-          const newCellRef = `${String.fromCharCode(65 + col)}${row}`;
+          const newRow = row - 1;
+          setSelectedCell({ col, row: newRow });
+          const newCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
           const newCell = cells[newCellRef];
           setFormulaBarValue(newCell?.formula || '');
+          focusCellInput(col, newRow);
         }
         break;
         
       case 'ArrowDown':
         e.preventDefault();
         if (row < maxRows - 1) {
-          setSelectedCell({ col, row: row + 1 });
-          const newCellRef = `${String.fromCharCode(65 + col)}${row + 2}`;
+          const newRow = row + 1;
+          setSelectedCell({ col, row: newRow });
+          const newCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
           const newCell = cells[newCellRef];
           setFormulaBarValue(newCell?.formula || '');
+          focusCellInput(col, newRow);
         }
         break;
         
       case 'ArrowLeft':
         e.preventDefault();
         if (col > 0) {
-          setSelectedCell({ col: col - 1, row });
-          const newCellRef = `${String.fromCharCode(65 + col - 1)}${row + 1}`;
+          const newCol = col - 1;
+          setSelectedCell({ col: newCol, row });
+          const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
           const newCell = cells[newCellRef];
           setFormulaBarValue(newCell?.formula || '');
+          focusCellInput(newCol, row);
         }
         break;
         
       case 'ArrowRight':
         e.preventDefault();
         if (col < maxCols - 1) {
-          setSelectedCell({ col: col + 1, row });
-          const newCellRef = `${String.fromCharCode(65 + col + 1)}${row + 1}`;
+          const newCol = col + 1;
+          setSelectedCell({ col: newCol, row });
+          const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
           const newCell = cells[newCellRef];
           setFormulaBarValue(newCell?.formula || '');
+          focusCellInput(newCol, row);
         }
         break;
         
@@ -1019,54 +1111,79 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       };
       setCells(newCells);
       
-      // Proper validation logic
-      const newCompleted = new Set(completedCells);
-      
-      if (!value || value.trim() === '') {
-        // Clear cell - remove from completed
-        newCompleted.delete(cellRef);
-      } else if (value.startsWith('=')) {
-        // Formula validation
-        if (validateFormula(cellRef, value)) {
-          newCompleted.add(cellRef);
-          setScore(prev => prev + 100); // Higher score for correct formulas
-          setShowHint(null); // Clear any existing error hints
-        } else {
-          newCompleted.delete(cellRef);
-          // Show smart error hint automatically
-          const errorHintText = getErrorHint(cellRef, value);
-          setShowHint({
-            cellRef,
-            text: errorHintText,
-            x: 400, // Center of screen since we don't have mouse position
-            y: 300,
-            isError: true
-          });
-          // Auto-hide error hint after 8 seconds (longer than regular hints)
-          setTimeout(() => setShowHint(null), 8000);
-        }
-      } else {
-        // Hard-coded value - check if it's a valid expected result
-        const expectedValues: Record<string, number> = {
-          // Entry valuation calculations
-          'B6': 150.0,  // 12.5 * 12 = Entry EV
-          'B7': 87.5,   // 12.5 * 7 = Total Debt  
-          'B8': 62.5,   // 150 - 87.5 = Equity Check
-        };
-        
-        const numValue = parseFloat(value);
-        const expected = expectedValues[cellRef];
-        
-        if (expected !== undefined && Math.abs(numValue - expected) < 0.1) {
-          newCompleted.add(cellRef);
-          setScore(prev => prev + 50); // Lower score for hard-coded values
-        } else {
-          newCompleted.delete(cellRef);
-        }
-      }
-      
-      setCompletedCells(newCompleted);
+      // Only update formula bar, don't validate while typing
+      setFormulaBarValue(value);
     }
+  };
+
+  const handleCellSubmit = (col: number, row: number, value: string) => {
+    const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+    
+    // Proper validation logic - only when submitting
+    const newCompleted = new Set(completedCells);
+    
+    if (!value || value.trim() === '') {
+      // Clear cell - remove from completed
+      newCompleted.delete(cellRef);
+    } else if (value.startsWith('=')) {
+      // Formula validation
+      console.log('🔍 Validating formula:', cellRef, value);
+      const isValid = validateFormula(cellRef, value);
+      console.log('✅ Validation result:', isValid);
+      
+      if (isValid) {
+        newCompleted.add(cellRef);
+        setScore(prev => prev + 100); // Higher score for correct formulas
+        setShowHint(null); // Clear any existing error hints
+      } else {
+        newCompleted.delete(cellRef);
+        // Show smart error hint automatically
+        console.log('❌ Formula invalid, showing error hint');
+        const errorHintText = getErrorHint(cellRef, value);
+        console.log('💬 Error hint text:', errorHintText);
+        
+        // Get the position of the cell for proper hint positioning
+        const cellElement = document.querySelector(`[data-cell="${cellRef}"]`) as HTMLElement;
+        let hintX = 400; // fallback
+        let hintY = 300; // fallback
+        
+        if (cellElement) {
+          const rect = cellElement.getBoundingClientRect();
+          hintX = rect.left + 10; // Slight offset from left edge
+          hintY = rect.bottom + 10; // Below the cell
+        }
+        
+        setShowHint({
+          cellRef,
+          text: errorHintText,
+          x: hintX,
+          y: hintY,
+          isError: true
+        });
+        // Auto-hide error hint after 8 seconds (longer than regular hints)
+        setTimeout(() => setShowHint(null), 8000);
+      }
+    } else {
+      // Hard-coded value - check if it's a valid expected result
+      const expectedValues: Record<string, number> = {
+        // Entry valuation calculations
+        'B6': 150.0,  // 12.5 * 12 = Entry EV
+        'B7': 87.5,   // 12.5 * 7 = Total Debt  
+        'B8': 62.5,   // 150 - 87.5 = Equity Check
+      };
+      
+      const numValue = parseFloat(value);
+      const expected = expectedValues[cellRef];
+      
+      if (expected !== undefined && Math.abs(numValue - expected) < 0.1) {
+        newCompleted.add(cellRef);
+        setScore(prev => prev + 50); // Lower score for hard-coded values
+      } else {
+        newCompleted.delete(cellRef);
+      }
+    }
+    
+    setCompletedCells(newCompleted);
   };
 
   const handleGoHome = () => {
@@ -1128,6 +1245,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     return (
       <DataCell
         key={cellRef}
+        data-cell={cellRef}
         $isSelected={isSelected}
         $isCorrect={completedCells.has(cellRef)}
         $hasHint={cell?.hasHint && !cell?.isLocked && !completedCells.has(cellRef)}
@@ -1143,7 +1261,13 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
             value={cell?.value || ''}
             onChange={(e) => handleCellChange(col, row, e.target.value)}
             onFocus={() => handleCellClick(col, row)}
-            onKeyDown={(e) => handleKeyDown(e, col, row)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === 'Tab') {
+                handleCellSubmit(col, row, e.currentTarget.value);
+              }
+              handleKeyDown(e, col, row);
+            }}
+            onBlur={(e) => handleCellSubmit(col, row, e.target.value)}
           />
         )}
       </DataCell>
@@ -1245,6 +1369,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
                   if (e.key === 'Enter' && selectedCell) {
                     e.preventDefault();
                     handleCellChange(selectedCell.col, selectedCell.row, formulaBarValue);
+                    handleCellSubmit(selectedCell.col, selectedCell.row, formulaBarValue);
                     // Move down one cell after Enter in formula bar
                     if (selectedCell.row < 24) {
                       const newRow = selectedCell.row + 1;
@@ -1252,6 +1377,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
                       const newCellRef = `${String.fromCharCode(65 + selectedCell.col)}${newRow + 1}`;
                       const newCell = cells[newCellRef];
                       setFormulaBarValue(newCell?.formula || '');
+                      focusCellInput(selectedCell.col, newRow);
                     }
                   }
                 }}
