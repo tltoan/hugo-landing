@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import { theme } from '../../styles/theme';
 import { useAuth } from '../../contexts/AuthContext';
-import { multiplayerService, MultiplayerGame } from '../../services/multiplayerService';
+import { multiplayerService, MultiplayerGame } from '../../services/supabaseMultiplayerService';
 import Header from '../../components/shared/Header';
 
 const fadeInUp = keyframes`
@@ -14,6 +14,12 @@ const fadeInUp = keyframes`
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+`;
+
+const spin = keyframes`
+  to {
+    transform: rotate(360deg);
   }
 `;
 
@@ -28,39 +34,37 @@ const Content = styled.main`
   padding: 2rem;
 `;
 
-const PageTitle = styled.h2`
-  font-size: 32px;
+const PageTitle = styled.h1`
+  font-size: 48px;
   color: ${theme.colors.primary};
   font-family: ${theme.fonts.header};
-  text-align: center;
   margin-bottom: 2rem;
-  animation: ${fadeInUp} 0.8s ease-out 0.2s backwards;
+  text-align: center;
+  animation: ${fadeInUp} 0.6s ease-out;
 `;
 
 const TabSection = styled.div`
   display: flex;
-  justify-content: center;
   gap: 1rem;
-  margin-bottom: 3rem;
-  animation: ${fadeInUp} 0.8s ease-out 0.4s backwards;
+  margin-bottom: 2rem;
+  justify-content: center;
+  animation: ${fadeInUp} 0.6s ease-out 0.1s backwards;
 `;
 
-const TabButton = styled.button<{ $active: boolean }>`
+const TabButton = styled.button<{ $active?: boolean }>`
   padding: 12px 24px;
-  background-color: ${props => props.$active ? theme.colors.buttonPrimary : theme.colors.white};
-  color: ${props => props.$active ? theme.colors.white : theme.colors.primary};
+  background: ${props => props.$active ? theme.colors.buttonPrimary : theme.colors.white};
+  color: ${props => props.$active ? theme.colors.white : theme.colors.text};
   border: 2px solid ${theme.colors.buttonPrimary};
   border-radius: 25px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
 
   &:hover {
-    background-color: ${theme.colors.buttonPrimary};
-    color: ${theme.colors.white};
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(65, 83, 120, 0.3);
+    box-shadow: 0 4px 12px rgba(65, 83, 120, 0.2);
   }
 `;
 
@@ -68,77 +72,153 @@ const SectionCard = styled.div<{ delay?: number }>`
   background: ${theme.colors.white};
   border-radius: 20px;
   padding: 2rem;
-  box-shadow: 0 10px 30px rgba(65, 83, 120, 0.1);
   margin-bottom: 2rem;
-  animation: ${fadeInUp} 0.8s ease-out ${props => (props.delay || 0) * 0.1}s backwards;
+  box-shadow: 0 10px 30px rgba(65, 83, 120, 0.1);
+  animation: ${fadeInUp} 0.6s ease-out ${props => (props.delay || 3) * 0.1}s backwards;
 `;
 
-const SectionTitle = styled.h3`
+const SectionTitle = styled.h2`
   font-size: 24px;
   color: ${theme.colors.primary};
   font-family: ${theme.fonts.header};
   margin-bottom: 1.5rem;
 `;
 
-const CreateGameSection = styled.div`
+const FormGroup = styled.div`
   display: flex;
   gap: 1rem;
-  align-items: flex-end;
-  flex-wrap: wrap;
-`;
+  margin-bottom: 1rem;
 
-const InputGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-`;
-
-const InputLabel = styled.label`
-  font-size: 14px;
-  font-weight: 500;
-  color: ${theme.colors.text};
+  @media (max-width: ${theme.breakpoints.mobile}) {
+    flex-direction: column;
+  }
 `;
 
 const Input = styled.input`
-  padding: 12px 16px;
+  flex: 1;
+  padding: 12px 20px;
   border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 14px;
-  min-width: 200px;
-  transition: border-color 0.2s ease;
+  border-radius: 15px;
+  font-size: 16px;
+  transition: all 0.3s ease;
 
   &:focus {
     outline: none;
-    border-color: ${theme.colors.buttonPrimary};
+    border-color: ${theme.colors.primary};
+    box-shadow: 0 0 0 3px rgba(65, 83, 120, 0.1);
   }
 `;
 
 const Select = styled.select`
-  padding: 12px 16px;
+  padding: 12px 20px;
   border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 14px;
-  min-width: 200px;
-  background-color: white;
-  transition: border-color 0.2s ease;
+  border-radius: 15px;
+  font-size: 16px;
+  background: ${theme.colors.white};
+  cursor: pointer;
+  transition: all 0.3s ease;
 
   &:focus {
     outline: none;
-    border-color: ${theme.colors.buttonPrimary};
+    border-color: ${theme.colors.primary};
+    box-shadow: 0 0 0 3px rgba(65, 83, 120, 0.1);
   }
 `;
 
 const CreateButton = styled.button`
-  padding: 12px 24px;
-  background-color: ${theme.colors.buttonPrimary};
+  padding: 12px 32px;
+  background: ${theme.colors.buttonPrimary};
   color: ${theme.colors.white};
   border: none;
-  border-radius: 25px;
+  border-radius: 20px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(65, 83, 120, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const GamesList = styled.div`
+  display: grid;
+  gap: 1rem;
+`;
+
+const GameCard = styled.div`
+  background: ${theme.colors.white};
+  border: 2px solid #e5e7eb;
+  border-radius: 15px;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+
+  &:hover {
+    border-color: ${theme.colors.primary};
+    box-shadow: 0 4px 12px rgba(65, 83, 120, 0.1);
+  }
+`;
+
+const GameInfo = styled.div`
+  flex: 1;
+`;
+
+const GameName = styled.h3`
+  font-size: 18px;
+  color: ${theme.colors.primary};
+  margin-bottom: 0.5rem;
+`;
+
+const GameMeta = styled.div`
+  display: flex;
+  gap: 1rem;
+  font-size: 14px;
+  color: ${theme.colors.text};
+  opacity: 0.8;
+`;
+
+const MetaItem = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+`;
+
+const StatusBadge = styled.span<{ status: string }>`
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: ${props => {
+    switch (props.status) {
+      case 'waiting': return '#22c55e';
+      case 'in_progress': return '#f59e0b';
+      case 'completed': return '#94a3b8';
+      default: return theme.colors.primary;
+    }
+  }};
+  color: white;
+`;
+
+const JoinButton = styled.button`
+  padding: 10px 24px;
+  background: ${theme.colors.buttonPrimary};
+  color: ${theme.colors.white};
+  border: none;
+  border-radius: 20px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
-  white-space: nowrap;
 
   &:hover {
     transform: translateY(-2px);
@@ -148,65 +228,26 @@ const CreateButton = styled.button`
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    transform: none;
   }
 `;
 
-const GamesList = styled.div`
+const LoadingSpinner = styled.div`
+  width: 24px;
+  height: 24px;
+  border: 3px solid ${theme.colors.primary};
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: ${spin} 0.8s linear infinite;
+  margin: 0 auto;
+`;
+
+const LoadingContainer = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-`;
-
-const GameCard = styled.div`
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 1.5rem;
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: ${theme.colors.buttonPrimary};
-    box-shadow: 0 2px 8px rgba(65, 83, 120, 0.1);
-  }
-`;
-
-const GameInfo = styled.div`
-  flex: 1;
-`;
-
-const GameName = styled.h4`
-  font-size: 18px;
-  font-weight: 600;
-  color: ${theme.colors.primary};
-  margin: 0 0 0.5rem 0;
-`;
-
-const GameMeta = styled.div`
-  display: flex;
+  justify-content: center;
+  padding: 3rem;
   gap: 1rem;
-  font-size: 14px;
-  color: ${theme.colors.text};
-  opacity: 0.7;
-`;
-
-const JoinButton = styled.button`
-  padding: 8px 16px;
-  background-color: ${theme.colors.buttonPrimary};
-  color: ${theme.colors.white};
-  border: none;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(65, 83, 120, 0.3);
-  }
 `;
 
 const EmptyState = styled.div`
@@ -214,6 +255,26 @@ const EmptyState = styled.div`
   padding: 3rem 1rem;
   color: ${theme.colors.text};
   opacity: 0.6;
+`;
+
+const ErrorMessage = styled.div`
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  text-align: center;
+`;
+
+const SuccessMessage = styled.div`
+  background-color: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #15803d;
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  text-align: center;
 `;
 
 type TabType = 'lobby' | 'leaderboard' | 'practice';
@@ -225,44 +286,119 @@ const MultiplayerPage: React.FC = () => {
   const [gameName, setGameName] = useState('');
   const [selectedScenario, setSelectedScenario] = useState('techcorp');
   const [isCreating, setIsCreating] = useState(false);
+  const [isJoining, setIsJoining] = useState<string | null>(null);
   const [games, setGames] = useState<MultiplayerGame[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     loadGames();
+    
+    // Subscribe to real-time updates
+    const channel = multiplayerService.subscribeToLobby((payload) => {
+      console.log('Real-time update received:', payload);
+      // Reload games when there's an update
+      loadGames();
+    });
+
+    // Cleanup on unmount
+    return () => {
+      multiplayerService.unsubscribeFromLobby();
+    };
   }, []);
 
   const loadGames = async () => {
     try {
       setLoading(true);
+      setError(null);
       const activeGames = await multiplayerService.getActiveGames();
       setGames(activeGames);
     } catch (error) {
       console.error('Error loading games:', error);
+      setError('Failed to load games. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  const getScenarioName = (scenarioId: string): string => {
+    const scenarios: Record<string, string> = {
+      'techcorp': 'TechCorp LBO',
+      'retailmax': 'RetailMax Buyout',
+      'manufacturing': 'Manufacturing Giant',
+      'healthcare': 'Healthcare Services',
+      'energy': 'Energy Conglomerate'
+    };
+    return scenarios[scenarioId] || 'Unknown Scenario';
+  };
 
   const handleCreateGame = async () => {
-    if (!gameName.trim() || !user?.id) return;
+    if (!gameName.trim()) {
+      setError('Please enter a game name');
+      return;
+    }
     
     setIsCreating(true);
+    setError(null);
+    setSuccess(null);
+    
     try {
-      await multiplayerService.createGame(gameName, selectedScenario, user.id);
-      setGameName('');
-      await loadGames(); // Refresh the games list
+      const game = await multiplayerService.createGame(
+        gameName, 
+        selectedScenario,
+        getScenarioName(selectedScenario),
+        4
+      );
+      
+      if (game) {
+        setSuccess('Game created successfully!');
+        setGameName('');
+        // Navigate to the game
+        setTimeout(() => {
+          navigate(`/multiplayer/game/${game.id}`);
+        }, 500);
+      } else {
+        setError('Failed to create game. Please try again.');
+      }
     } catch (error) {
       console.error('Error creating game:', error);
+      setError('An error occurred while creating the game.');
     } finally {
       setIsCreating(false);
     }
   };
 
-  const handleJoinGame = (gameId: string) => {
-    // Navigate to multiplayer game
-    navigate(`/multiplayer/game/${gameId}`);
+  const handleJoinGame = async (gameId: string) => {
+    setIsJoining(gameId);
+    setError(null);
+    
+    try {
+      const success = await multiplayerService.joinGame(gameId);
+      if (success) {
+        // Navigate to the game
+        navigate(`/multiplayer/game/${gameId}`);
+      } else {
+        setError('Unable to join game. It may be full or already started.');
+      }
+    } catch (error) {
+      console.error('Error joining game:', error);
+      setError('An error occurred while joining the game.');
+    } finally {
+      setIsJoining(null);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)} hours ago`;
+    return `${Math.floor(diffMins / 1440)} days ago`;
   };
 
   return (
@@ -293,92 +429,94 @@ const MultiplayerPage: React.FC = () => {
           </TabButton>
         </TabSection>
 
+        {error && <ErrorMessage>{error}</ErrorMessage>}
+        {success && <SuccessMessage>{success}</SuccessMessage>}
+
         {activeTab === 'lobby' && (
           <>
-            <SectionCard delay={6}>
+            <SectionCard delay={2}>
               <SectionTitle>Create New Game</SectionTitle>
-              <CreateGameSection>
-                <InputGroup>
-                  <InputLabel>Game Name</InputLabel>
-                  <Input
-                    type="text"
-                    placeholder="Enter game name..."
-                    value={gameName}
-                    onChange={(e) => setGameName(e.target.value)}
-                  />
-                </InputGroup>
-                <InputGroup>
-                  <InputLabel>LBO Scenario</InputLabel>
-                  <Select
-                    value={selectedScenario}
-                    onChange={(e) => setSelectedScenario(e.target.value)}
-                  >
-                    <option value="techcorp">TechCorp LBO (Beginner)</option>
-                    <option value="retailmax">RetailMax Buyout (Beginner)</option>
-                    <option value="manufacturing">Manufacturing Giant (Intermediate)</option>
-                    <option value="healthcare">Healthcare Services (Intermediate)</option>
-                    <option value="energy">Energy Conglomerate (Advanced)</option>
-                  </Select>
-                </InputGroup>
-                <CreateButton
-                  onClick={handleCreateGame}
-                  disabled={!gameName.trim() || isCreating}
+              <FormGroup>
+                <Input
+                  type="text"
+                  placeholder="Enter game name..."
+                  value={gameName}
+                  onChange={(e) => setGameName(e.target.value)}
+                  disabled={isCreating}
+                />
+                <Select 
+                  value={selectedScenario} 
+                  onChange={(e) => setSelectedScenario(e.target.value)}
+                  disabled={isCreating}
                 >
+                  <option value="techcorp">TechCorp LBO (Beginner)</option>
+                  <option value="retailmax">RetailMax Buyout (Beginner)</option>
+                  <option value="manufacturing">Manufacturing Giant (Intermediate)</option>
+                  <option value="healthcare">Healthcare Services (Intermediate)</option>
+                  <option value="energy">Energy Conglomerate (Advanced)</option>
+                </Select>
+                <CreateButton onClick={handleCreateGame} disabled={isCreating}>
                   {isCreating ? 'Creating...' : 'Create Game'}
                 </CreateButton>
-              </CreateGameSection>
+              </FormGroup>
             </SectionCard>
 
-            <SectionCard delay={7}>
+            <SectionCard delay={3}>
               <SectionTitle>Active Games</SectionTitle>
               {loading ? (
-                <EmptyState>
-                  <p>Loading games...</p>
-                </EmptyState>
-              ) : games.length === 0 ? (
-                <EmptyState>
-                  <p>No active games found.</p>
-                  <p>Create a new game to get started!</p>
-                </EmptyState>
-              ) : (
+                <LoadingContainer>
+                  <LoadingSpinner />
+                  <span>Loading games...</span>
+                </LoadingContainer>
+              ) : games.length > 0 ? (
                 <GamesList>
                   {games.map((game) => (
                     <GameCard key={game.id}>
                       <GameInfo>
                         <GameName>{game.name}</GameName>
                         <GameMeta>
-                          <span>📊 {game.scenarioName}</span>
-                          <span>👥 {game.players.length}/{game.maxPlayers} players</span>
-                          <span>🟢 {game.status}</span>
+                          <MetaItem>🎮 {game.scenario_name}</MetaItem>
+                          <MetaItem>👥 {game.current_players}/{game.max_players} players</MetaItem>
+                          <MetaItem>🕐 {formatDate(game.created_at)}</MetaItem>
+                          <StatusBadge status={game.status}>{game.status}</StatusBadge>
                         </GameMeta>
                       </GameInfo>
-                      <JoinButton onClick={() => handleJoinGame(game.id)}>
-                        Join Game
+                      <JoinButton 
+                        onClick={() => handleJoinGame(game.id)}
+                        disabled={isJoining === game.id || game.status !== 'waiting'}
+                      >
+                        {isJoining === game.id ? 'Joining...' : 
+                         game.status === 'waiting' ? 'Join Game' : 'In Progress'}
                       </JoinButton>
                     </GameCard>
                   ))}
                 </GamesList>
+              ) : (
+                <EmptyState>
+                  <p>No active games at the moment.</p>
+                  <p>Create one to get started!</p>
+                </EmptyState>
               )}
             </SectionCard>
           </>
         )}
 
         {activeTab === 'leaderboard' && (
-          <SectionCard delay={6}>
+          <SectionCard delay={2}>
             <SectionTitle>Global Leaderboard</SectionTitle>
             <EmptyState>
-              <p>🏆 Leaderboard coming soon!</p>
-              <p>Complete multiplayer games to see rankings here.</p>
+              <p>Leaderboard coming soon!</p>
+              <p>Complete multiplayer games to earn your spot on the leaderboard.</p>
             </EmptyState>
           </SectionCard>
         )}
 
         {activeTab === 'practice' && (
-          <SectionCard delay={6}>
-            <SectionTitle>Practice Problems</SectionTitle>
+          <SectionCard delay={2}>
+            <SectionTitle>Practice Mode</SectionTitle>
             <EmptyState>
-              <p>📚 Practice mode integration coming soon!</p>
-              <p>Visit the Problems page for individual practice.</p>
+              <p>Practice against AI opponents to improve your skills!</p>
+              <p>Coming soon...</p>
             </EmptyState>
           </SectionCard>
         )}

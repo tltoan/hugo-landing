@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import styled, { keyframes } from "styled-components";
 import { theme } from "../../styles/theme";
 import { useAuth } from "../../contexts/AuthContext";
-import { multiplayerService, MultiplayerGame } from "../../services/multiplayerService";
+import { multiplayerService, MultiplayerGame } from "../../services/supabaseMultiplayerService";
 
 const fadeInUp = keyframes`
   from {
