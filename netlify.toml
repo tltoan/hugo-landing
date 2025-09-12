@@ -3,6 +3,7 @@
 [build]
   command = "CI=false npm run build"
   publish = "build"
+  environment = { SECRETS_SCAN_OMIT_KEYS = "REACT_APP_SUPABASE_URL,REACT_APP_SUPABASE_ANON_KEY" }
 
 # Redirect all routes to index.html for client-side routing
 [[redirects]]
