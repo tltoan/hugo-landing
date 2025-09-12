@@ -280,7 +280,7 @@ const SuccessMessage = styled.div`
 type TabType = 'lobby' | 'leaderboard' | 'practice';
 
 const MultiplayerPage: React.FC = () => {
-  const { user } = useAuth();
+  // const { user } = useAuth(); // Will be used for user identification
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('lobby');
   const [gameName, setGameName] = useState('');
@@ -296,7 +296,7 @@ const MultiplayerPage: React.FC = () => {
     loadGames();
     
     // Subscribe to real-time updates
-    const channel = multiplayerService.subscribeToLobby((payload) => {
+    multiplayerService.subscribeToLobby((payload) => {
       console.log('Real-time update received:', payload);
       // Reload games when there's an update
       loadGames();

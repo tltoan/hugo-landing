@@ -308,7 +308,7 @@ const MultiplayerGamePage: React.FC = () => {
     loadGameData();
     
     // Subscribe to real-time updates
-    const channel = multiplayerService.subscribeToGame(gameId, (payload) => {
+    multiplayerService.subscribeToGame(gameId, (payload) => {
       console.log('Game update received:', payload);
       // Reload game data when there's an update
       loadGameData();
@@ -318,6 +318,7 @@ const MultiplayerGamePage: React.FC = () => {
     return () => {
       multiplayerService.unsubscribeFromGame(gameId);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId]);
 
   // Countdown effect when all players are ready

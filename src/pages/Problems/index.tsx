@@ -209,7 +209,7 @@ const mockProblems: Problem[] = [
 ];
 
 const ProblemsPage: React.FC = () => {
-  const { user } = useAuth();
+  // const { user } = useAuth(); // Will be used for tracking user progress
   const navigate = useNavigate();
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
 

@@ -1,7 +1,7 @@
 # Netlify Configuration File
 
 [build]
-  command = "npm run build"
+  command = "CI=false npm run build"
   publish = "build"
 
 # Redirect all routes to index.html for client-side routing

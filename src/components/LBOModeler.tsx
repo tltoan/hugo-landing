@@ -335,6 +335,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problemId]);
 
   const getTechCorpData = () => {

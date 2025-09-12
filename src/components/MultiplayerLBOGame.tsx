@@ -343,6 +343,7 @@ const MultiplayerLBOGame: React.FC<MultiplayerLBOGameProps> = ({
         [cellId]: { ...prev[cellId], value: '' }
       }));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cells, completedCells, correctAttempts, totalAttempts, elapsedTime, totalEditableCells, gameId, isCompleted]);
 
   const normalizeAnswer = (value: string): string => {

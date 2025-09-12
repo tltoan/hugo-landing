@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+// import { useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import { theme } from '../../styles/theme';
 import { useAuth } from '../../contexts/AuthContext';
@@ -122,7 +122,7 @@ const mockLeaderboard = [
 ];
 
 const LeaderboardPage: React.FC = () => {
-  const { user } = useAuth();
+  // const { user } = useAuth(); // Will be used for actual leaderboard data
 
   return (
     <PageContainer>
