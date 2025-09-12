@@ -10,7 +10,7 @@ console.log('🔧 Supabase config loaded:', {
   keyFromEnv: process.env.REACT_APP_SUPABASE_ANON_KEY ? 'present' : 'missing'
 });
 
-const isMockMode = supabaseUrl === 'https://mock.supabase.co' || !supabaseUrl.includes('supabase.co')
+const isMockMode = supabaseUrl === 'https://mock.supabase.co' || supabaseUrl === 'mock-key'
 
 console.log('🎯 Mock mode check:', {
   isMockMode,
