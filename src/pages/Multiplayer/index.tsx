@@ -5,6 +5,7 @@ import { theme } from '../../styles/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { multiplayerService, MultiplayerGame } from '../../services/supabaseMultiplayerService';
 import Header from '../../components/shared/Header';
+import { aiPlayerService, AIDifficulty } from '../../services/aiPlayerService';
 
 const fadeInUp = keyframes`
   from {
@@ -285,6 +286,7 @@ const MultiplayerPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('lobby');
   const [gameName, setGameName] = useState('');
   const [selectedScenario, setSelectedScenario] = useState('techcorp');
+  const [selectedAI, setSelectedAI] = useState<AIDifficulty | 'none'>('none');
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState<string | null>(null);
   const [games, setGames] = useState<MultiplayerGame[]>([]);
@@ -354,6 +356,12 @@ const MultiplayerPage: React.FC = () => {
       if (game) {
         setSuccess('Game created successfully!');
         setGameName('');
+        
+        // Store AI preference in sessionStorage for the game page to pick up
+        if (selectedAI !== 'none') {
+          sessionStorage.setItem(`game_${game.id}_ai`, selectedAI);
+        }
+        
         // Navigate to the game
         setTimeout(() => {
           navigate(`/multiplayer/game/${game.id}`);
@@ -458,6 +466,22 @@ const MultiplayerPage: React.FC = () => {
                 <CreateButton onClick={handleCreateGame} disabled={isCreating}>
                   {isCreating ? 'Creating...' : 'Create Game'}
                 </CreateButton>
+              </FormGroup>
+              <FormGroup style={{ marginTop: '1rem' }}>
+                <label style={{ fontSize: '14px', color: theme.colors.text, marginBottom: '0.5rem' }}>
+                  Add AI Opponent (Optional):
+                </label>
+                <Select
+                  value={selectedAI}
+                  onChange={(e) => setSelectedAI(e.target.value as AIDifficulty | 'none')}
+                  disabled={isCreating}
+                  style={{ flex: 'none', width: '100%' }}
+                >
+                  <option value="none">No AI - Play with humans only</option>
+                  <option value="easy">🤖 AI Rookie (Easy - 70% accuracy)</option>
+                  <option value="medium">🤖 AI Challenger (Medium - 85% accuracy)</option>
+                  <option value="hard">🤖 AI Master (Hard - 95% accuracy)</option>
+                </Select>
               </FormGroup>
             </SectionCard>
 

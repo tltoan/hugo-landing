@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import Header from '../../components/shared/Header';
 import { multiplayerService, MultiplayerGame, GamePlayer } from '../../services/supabaseMultiplayerService';
 import MultiplayerLBOGame from '../../components/MultiplayerLBOGame';
+import { aiPlayerService, AIPlayer } from '../../services/aiPlayerService';
 
 const fadeInUp = keyframes`
   from {
@@ -297,6 +298,7 @@ const MultiplayerGamePage: React.FC = () => {
   const [players, setPlayers] = useState<GamePlayer[]>([]);
   const [isCreator, setIsCreator] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [aiPlayer, setAiPlayer] = useState<AIPlayer | null>(null);
 
   useEffect(() => {
     if (!gameId) {
@@ -307,16 +309,46 @@ const MultiplayerGamePage: React.FC = () => {
 
     loadGameData();
     
+    // Check if we should add an AI player
+    const aiDifficulty = sessionStorage.getItem(`game_${gameId}_ai`);
+    if (aiDifficulty && aiDifficulty !== 'none') {
+      const ai = aiPlayerService.createAIPlayer(gameId, aiDifficulty as any);
+      setAiPlayer(ai);
+      
+      // Mark AI as ready after a short delay
+      setTimeout(() => {
+        aiPlayerService.markAIReady(ai.id);
+        setAiPlayer(prev => prev ? { ...prev, isReady: true } : null);
+      }, 2000);
+      
+      // Clear the session storage
+      sessionStorage.removeItem(`game_${gameId}_ai`);
+    }
+    
     // Subscribe to real-time updates
     multiplayerService.subscribeToGame(gameId, (payload) => {
       console.log('Game update received:', payload);
       // Reload game data when there's an update
       loadGameData();
     });
+    
+    // Listen for AI updates
+    const handleAIUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent<AIPlayer>;
+      if (customEvent.detail.gameId === gameId) {
+        setAiPlayer(customEvent.detail);
+      }
+    };
+    
+    window.addEventListener('ai-player-update', handleAIUpdate);
 
     // Cleanup on unmount
     return () => {
       multiplayerService.unsubscribeFromGame(gameId);
+      window.removeEventListener('ai-player-update', handleAIUpdate);
+      if (gameId) {
+        aiPlayerService.stopGameAIPlayers(gameId);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId]);
@@ -328,8 +360,13 @@ const MultiplayerGamePage: React.FC = () => {
       return;
     }
 
-    // Check if all players are ready (minimum 2 players)
-    const allReady = players.length >= 2 && players.every(p => p.is_ready);
+    // Check total player count (including AI)
+    const totalPlayers = players.length + (aiPlayer ? 1 : 0);
+    
+    // Check if all players are ready (minimum 2 players including AI)
+    const humanPlayersReady = players.every(p => p.is_ready);
+    const aiReady = !aiPlayer || aiPlayer.isReady;
+    const allReady = totalPlayers >= 2 && humanPlayersReady && aiReady;
     
     if (allReady && countdown === null) {
       // Start countdown
@@ -338,7 +375,7 @@ const MultiplayerGamePage: React.FC = () => {
       // Cancel countdown if someone becomes not ready
       setCountdown(null);
     }
-  }, [players, game, isCreator, countdown]);
+  }, [players, game, isCreator, countdown, aiPlayer]);
 
   // Handle countdown timer
   useEffect(() => {
@@ -408,6 +445,13 @@ const MultiplayerGamePage: React.FC = () => {
     try {
       const success = await multiplayerService.startGame(gameId);
       if (success) {
+        // Start AI player if present
+        if (aiPlayer) {
+          setTimeout(() => {
+            aiPlayerService.startAIPlayer(aiPlayer.id);
+          }, 1000);
+        }
+        
         // Reload game data to reflect the status change
         await loadGameData();
       } else {
@@ -474,7 +518,8 @@ const MultiplayerGamePage: React.FC = () => {
 
   // Create empty slots for remaining player spots
   const emptySlots = [];
-  for (let i = players.length; i < game.max_players; i++) {
+  const totalOccupied = players.length + (aiPlayer ? 1 : 0);
+  for (let i = totalOccupied; i < game.max_players; i++) {
     emptySlots.push(
       <EmptySlot key={`empty-${i}`}>
         <span>🎮</span>
@@ -500,7 +545,7 @@ const MultiplayerGamePage: React.FC = () => {
         <GameInfo>
           <span>🎮 {game.name}</span>
           <span>📊 {game.scenario_name}</span>
-          <span>👥 {players.length}/{game.max_players} players</span>
+          <span>👥 {players.length + (aiPlayer ? 1 : 0)}/{game.max_players} players</span>
           <span>
             {game.status === 'waiting' && '⏳ Waiting to start'}
             {game.status === 'in_progress' && '🏁 In Progress'}
@@ -575,6 +620,25 @@ const MultiplayerGamePage: React.FC = () => {
               )}
             </PlayerCard>
           ))}
+          {aiPlayer && (
+            <PlayerCard
+              key={aiPlayer.id}
+              $isReady={aiPlayer.isReady}
+            >
+              <PlayerName>{aiPlayer.name}</PlayerName>
+              <PlayerScore>Score: {aiPlayer.score}</PlayerScore>
+              {game.status === 'waiting' && (
+                <PlayerStatus>
+                  {aiPlayer.isReady ? '✅ Ready' : '⏳ Getting Ready...'}
+                </PlayerStatus>
+              )}
+              {game.status === 'in_progress' && (
+                <PlayerStatus>
+                  Progress: {Math.round(aiPlayer.progress)}%
+                </PlayerStatus>
+              )}
+            </PlayerCard>
+          )}
           {game.status === 'waiting' && emptySlots}
         </PlayersSection>
 
@@ -593,6 +657,7 @@ const MultiplayerGamePage: React.FC = () => {
               scenarioId={game.scenario_id || 'techcorp'}
               players={players}
               currentUserId={user.id}
+              aiPlayer={aiPlayer}
               onComplete={(score, accuracy) => {
                 console.log('Game completed!', { score, accuracy });
                 // Handle game completion

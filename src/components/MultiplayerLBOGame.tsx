@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { theme } from '../styles/theme';
 import { multiplayerService } from '../services/supabaseMultiplayerService';
 import { GamePlayer } from '../services/supabaseMultiplayerService';
+import { AIPlayer } from '../services/aiPlayerService';
 
 const GameContainer = styled.div`
   width: 100%;
@@ -194,6 +195,7 @@ interface MultiplayerLBOGameProps {
   scenarioId: string;
   players: GamePlayer[];
   currentUserId: string;
+  aiPlayer?: AIPlayer | null;
   onComplete?: (score: number, accuracy: number) => void;
 }
 
@@ -202,6 +204,7 @@ const MultiplayerLBOGame: React.FC<MultiplayerLBOGameProps> = ({
   scenarioId, 
   players,
   currentUserId,
+  aiPlayer,
   onComplete 
 }) => {
   const [cells, setCells] = useState<Record<string, CellData>>({});
@@ -425,12 +428,26 @@ const MultiplayerLBOGame: React.FC<MultiplayerLBOGameProps> = ({
     );
   };
 
-  // Sort players by progress
-  const sortedPlayers = [...players].sort((a, b) => {
-    const progressA = playerProgress[a.user_id] || a.progress || 0;
-    const progressB = playerProgress[b.user_id] || b.progress || 0;
-    return progressB - progressA;
-  });
+  // Combine human and AI players for display
+  const allPlayers = [
+    ...players.map(p => ({
+      id: p.id,
+      name: p.username,
+      progress: playerProgress[p.user_id] || p.progress || 0,
+      isCurrentUser: p.user_id === currentUserId,
+      isAI: false
+    })),
+    ...(aiPlayer ? [{
+      id: aiPlayer.id,
+      name: aiPlayer.name,
+      progress: aiPlayer.progress,
+      isCurrentUser: false,
+      isAI: true
+    }] : [])
+  ];
+  
+  // Sort all players by progress
+  const sortedPlayers = allPlayers.sort((a, b) => b.progress - a.progress);
 
   return (
     <GameContainer>
@@ -461,12 +478,10 @@ const MultiplayerLBOGame: React.FC<MultiplayerLBOGameProps> = ({
         <Timer>⏱️ {formatTime(elapsedTime)}</Timer>
         <RacePositions>
           {sortedPlayers.map((player, index) => {
-            const progress = playerProgress[player.user_id] || player.progress || 0;
-            const isCurrentUser = player.user_id === currentUserId;
             const position = index + 1;
             
             return (
-              <RacerRow key={player.id} $isCurrentUser={isCurrentUser} $position={position}>
+              <RacerRow key={player.id} $isCurrentUser={player.isCurrentUser} $position={position}>
                 <Position $position={position}>
                   {position === 1 && '🥇'}
                   {position === 2 && '🥈'}
@@ -474,15 +489,15 @@ const MultiplayerLBOGame: React.FC<MultiplayerLBOGameProps> = ({
                   {position > 3 && position}
                 </Position>
                 <RacerName>
-                  {player.username} {isCurrentUser && '(You)'}
+                  {player.name} {player.isCurrentUser && '(You)'}
                 </RacerName>
                 <ProgressBarContainer>
-                  <ProgressFill $progress={progress} $isLeader={position === 1}>
-                    {Math.round(progress)}%
+                  <ProgressFill $progress={player.progress} $isLeader={position === 1}>
+                    {Math.round(player.progress)}%
                   </ProgressFill>
                 </ProgressBarContainer>
                 <CompletionStatus>
-                  {progress === 100 ? '✅ Finished!' : `${Math.round(progress)}%`}
+                  {player.progress === 100 ? '✅ Finished!' : `${Math.round(player.progress)}%`}
                 </CompletionStatus>
               </RacerRow>
             );
