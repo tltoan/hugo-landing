@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { multiplayerService, MultiplayerGame } from '../../services/supabaseMultiplayerService';
 import Header from '../../components/shared/Header';
 import { aiPlayerService, AIDifficulty } from '../../services/aiPlayerService';
+import { RacingTrack, RACING_TRACKS } from '../../services/racingModels';
 
 const fadeInUp = keyframes`
   from {
@@ -278,7 +279,7 @@ const SuccessMessage = styled.div`
   text-align: center;
 `;
 
-type TabType = 'lobby' | 'leaderboard' | 'practice';
+type TabType = 'lobby' | 'leaderboard';
 
 const MultiplayerPage: React.FC = () => {
   // const { user } = useAuth(); // Will be used for user identification
@@ -286,6 +287,7 @@ const MultiplayerPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('lobby');
   const [gameName, setGameName] = useState('');
   const [selectedScenario, setSelectedScenario] = useState('techcorp');
+  const [selectedTrack, setSelectedTrack] = useState<RacingTrack>('sprint');
   const [selectedAI, setSelectedAI] = useState<AIDifficulty | 'none'>('none');
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState<string | null>(null);
@@ -357,10 +359,11 @@ const MultiplayerPage: React.FC = () => {
         setSuccess('Game created successfully!');
         setGameName('');
         
-        // Store AI preference in sessionStorage for the game page to pick up
+        // Store game preferences in sessionStorage for the game page to pick up
         if (selectedAI !== 'none') {
           sessionStorage.setItem(`game_${game.id}_ai`, selectedAI);
         }
+        sessionStorage.setItem(`game_${game.id}_track`, selectedTrack);
         
         // Navigate to the game
         setTimeout(() => {
@@ -429,12 +432,6 @@ const MultiplayerPage: React.FC = () => {
           >
             Leaderboard
           </TabButton>
-          <TabButton 
-            $active={activeTab === 'practice'} 
-            onClick={() => setActiveTab('practice')}
-          >
-            Practice Mode
-          </TabButton>
         </TabSection>
 
         {error && <ErrorMessage>{error}</ErrorMessage>}
@@ -452,37 +449,77 @@ const MultiplayerPage: React.FC = () => {
                   onChange={(e) => setGameName(e.target.value)}
                   disabled={isCreating}
                 />
-                <Select 
-                  value={selectedScenario} 
-                  onChange={(e) => setSelectedScenario(e.target.value)}
-                  disabled={isCreating}
-                >
-                  <option value="techcorp">TechCorp LBO (Beginner)</option>
-                  <option value="retailmax">RetailMax Buyout (Beginner)</option>
-                  <option value="manufacturing">Manufacturing Giant (Intermediate)</option>
-                  <option value="healthcare">Healthcare Services (Intermediate)</option>
-                  <option value="energy">Energy Conglomerate (Advanced)</option>
-                </Select>
                 <CreateButton onClick={handleCreateGame} disabled={isCreating}>
                   {isCreating ? 'Creating...' : 'Create Game'}
                 </CreateButton>
               </FormGroup>
-              <FormGroup style={{ marginTop: '1rem' }}>
-                <label style={{ fontSize: '14px', color: theme.colors.text, marginBottom: '0.5rem' }}>
+              
+              <div style={{ marginTop: '1.5rem' }}>
+                <label style={{ 
+                  display: 'block',
+                  fontSize: '14px', 
+                  color: theme.colors.text, 
+                  marginBottom: '0.5rem',
+                  fontWeight: '600'
+                }}>
+                  Select Racing Track:
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.5rem' }}>
+                  {Object.entries(RACING_TRACKS).map(([key, track]) => (
+                    <label
+                      key={key}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '0.75rem',
+                        border: `2px solid ${selectedTrack === key ? theme.colors.primary : '#e5e7eb'}`,
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        backgroundColor: selectedTrack === key ? 'rgba(65, 83, 120, 0.05)' : 'white',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="track"
+                        value={key}
+                        checked={selectedTrack === key}
+                        onChange={(e) => setSelectedTrack(e.target.value as RacingTrack)}
+                        style={{ marginRight: '0.75rem' }}
+                        disabled={isCreating}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '500', marginBottom: '0.25rem' }}>
+                          {track.name} ({track.cellCount} cells)
+                        </div>
+                        <div style={{ fontSize: '12px', color: theme.colors.text, opacity: 0.7 }}>
+                          {track.description} • {track.estimatedTime}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div style={{ marginTop: '1rem' }}>
+                <label style={{ 
+                  display: 'block',
+                  fontSize: '14px', 
+                  color: theme.colors.text, 
+                  marginBottom: '0.5rem' 
+                }}>
                   Add AI Opponent (Optional):
                 </label>
                 <Select
                   value={selectedAI}
                   onChange={(e) => setSelectedAI(e.target.value as AIDifficulty | 'none')}
                   disabled={isCreating}
-                  style={{ flex: 'none', width: '100%' }}
                 >
                   <option value="none">No AI - Play with humans only</option>
                   <option value="easy">🤖 AI Rookie (Easy - 70% accuracy)</option>
                   <option value="medium">🤖 AI Challenger (Medium - 85% accuracy)</option>
                   <option value="hard">🤖 AI Master (Hard - 95% accuracy)</option>
                 </Select>
-              </FormGroup>
+              </div>
             </SectionCard>
 
             <SectionCard delay={3}>
@@ -535,15 +572,6 @@ const MultiplayerPage: React.FC = () => {
           </SectionCard>
         )}
 
-        {activeTab === 'practice' && (
-          <SectionCard delay={2}>
-            <SectionTitle>Practice Mode</SectionTitle>
-            <EmptyState>
-              <p>Practice against AI opponents to improve your skills!</p>
-              <p>Coming soon...</p>
-            </EmptyState>
-          </SectionCard>
-        )}
       </Content>
     </PageContainer>
   );

@@ -1,4 +1,5 @@
 import { multiplayerService } from './supabaseMultiplayerService';
+import { RacingTrack, getModelForTrack } from './racingModels';
 
 export type AIDifficulty = 'easy' | 'medium' | 'hard';
 
@@ -34,19 +35,15 @@ const AI_CONFIGS: Record<AIDifficulty, AIPlayerConfig> = {
   }
 };
 
-// LBO model answers for the AI to "solve"
-const LBO_ANSWERS = [
-  { cell: 'C3', answer: '110', formula: '=B3*1.1' },
-  { cell: 'D3', answer: '121', formula: '=C3*1.1' },
-  { cell: 'C4', answer: '20%', formula: '=20%' },
-  { cell: 'D4', answer: '20%', formula: '=20%' },
-  { cell: 'B5', answer: '20', formula: '=B3*B4' },
-  { cell: 'C5', answer: '22', formula: '=C3*C4' },
-  { cell: 'D5', answer: '24.2', formula: '=D3*D4' },
-  { cell: 'B8', answer: '200', formula: '=B5*10' },
-  { cell: 'D11', answer: '290.4', formula: '=D5*12' },
-  { cell: 'D13', answer: '13.2%', formula: '=(D11/B8)^(1/3)-1' }
-];
+// Get LBO model answers based on track
+function getLBOAnswers(track: RacingTrack = 'sprint') {
+  const model = getModelForTrack(track);
+  return model.filter(cell => !cell.locked && cell.answer).map(cell => ({
+    cell: cell.id,
+    answer: cell.answer || '',
+    formula: cell.formula || ''
+  }));
+}
 
 export interface AIPlayer {
   id: string;
@@ -58,6 +55,7 @@ export interface AIPlayer {
   accuracy: number;
   isReady: boolean;
   isComplete: boolean;
+  track?: RacingTrack;
 }
 
 export class AIPlayerService {
@@ -75,7 +73,7 @@ export class AIPlayerService {
   }
 
   // Create an AI player for a game
-  createAIPlayer(gameId: string, difficulty: AIDifficulty): AIPlayer {
+  createAIPlayer(gameId: string, difficulty: AIDifficulty, track: RacingTrack = 'sprint'): AIPlayer {
     const config = AI_CONFIGS[difficulty];
     const aiId = `ai_${difficulty}_${Date.now()}`;
     
@@ -86,9 +84,10 @@ export class AIPlayerService {
       difficulty: difficulty,
       progress: 0,
       score: 0,
-      accuracy: 100,
+      accuracy: 0,  // Start at 0 instead of 100
       isReady: false,
-      isComplete: false
+      isComplete: false,
+      track: track
     };
     
     this.activeAIPlayers.set(aiId, aiPlayer);
@@ -119,6 +118,12 @@ export class AIPlayerService {
     const ai = this.activeAIPlayers.get(aiId);
     if (!ai || ai.isComplete) return;
     
+    // Prevent starting multiple times
+    if (this.aiTimers.has(aiId)) {
+      console.log(`⚠️ ${ai.name} is already playing`);
+      return;
+    }
+    
     const config = AI_CONFIGS[ai.difficulty];
     const timers: NodeJS.Timeout[] = [];
     
@@ -129,8 +134,11 @@ export class AIPlayerService {
     
     console.log(`🎮 ${ai.name} starting to play!`);
     
+    // Get answers based on track
+    const lboAnswers = getLBOAnswers(ai.track || 'sprint');
+    
     // Solve each cell with delays
-    LBO_ANSWERS.forEach((cellData, index) => {
+    lboAnswers.forEach((cellData, index) => {
       const baseDelay = index * config.speed;
       const variation = Math.random() * 1000 - 500; // Add randomness
       const delay = Math.max(1000, baseDelay + variation);
@@ -159,10 +167,12 @@ export class AIPlayerService {
               completedCells++;
               
               // Update progress after retry
-              ai.progress = (completedCells / LBO_ANSWERS.length) * 100;
+              ai.progress = (completedCells / lboAnswers.length) * 100;
               ai.accuracy = (correctAttempts / attempts) * 100;
               const elapsedTime = (Date.now() - startTime) / 1000;
-              ai.score = Math.round(ai.accuracy * 10 + Math.max(0, 300 - elapsedTime));
+              // More balanced scoring: accuracy (0-1000) + speed bonus (0-300) scaled by progress
+              const progressMultiplier = ai.progress / 100;
+              ai.score = Math.round((ai.accuracy * 10 + Math.max(0, 300 - elapsedTime * 2)) * progressMultiplier);
               
               console.log(`✅ ${ai.name} fixed ${cellData.cell}`);
               this.broadcastAIUpdate(ai);
@@ -174,16 +184,18 @@ export class AIPlayerService {
         }
         
         // Update AI progress
-        ai.progress = (completedCells / LBO_ANSWERS.length) * 100;
+        ai.progress = (completedCells / lboAnswers.length) * 100;
         ai.accuracy = (correctAttempts / attempts) * 100;
         const elapsedTime = (Date.now() - startTime) / 1000;
-        ai.score = Math.round(ai.accuracy * 10 + Math.max(0, 300 - elapsedTime));
+        // More balanced scoring: accuracy (0-1000) + speed bonus (0-300) scaled by progress
+        const progressMultiplier = ai.progress / 100; // Scale score by how much is completed
+        ai.score = Math.round((ai.accuracy * 10 + Math.max(0, 300 - elapsedTime * 2)) * progressMultiplier);
         
         console.log(`✅ ${ai.name} completed ${cellData.cell} (${Math.round(ai.progress)}%)`);
         this.broadcastAIUpdate(ai);
         
         // Check if AI completed the game
-        if (completedCells === LBO_ANSWERS.length) {
+        if (completedCells === lboAnswers.length) {
           ai.isComplete = true;
           ai.progress = 100;
           

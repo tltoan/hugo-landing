@@ -7,6 +7,7 @@ import Header from '../../components/shared/Header';
 import { multiplayerService, MultiplayerGame, GamePlayer } from '../../services/supabaseMultiplayerService';
 import MultiplayerLBOGame from '../../components/MultiplayerLBOGame';
 import { aiPlayerService, AIPlayer } from '../../services/aiPlayerService';
+import { RacingTrack } from '../../services/racingModels';
 
 const fadeInUp = keyframes`
   from {
@@ -270,6 +271,7 @@ const CountdownNumber = styled.div`
   color: ${theme.colors.white};
   text-shadow: 0 0 40px rgba(65, 83, 120, 0.8);
   animation: ${fadeInUp} 0.5s ease-out;
+  text-align: center;
   
   @keyframes pulse {
     0% { transform: scale(1); }
@@ -299,6 +301,7 @@ const MultiplayerGamePage: React.FC = () => {
   const [isCreator, setIsCreator] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [aiPlayer, setAiPlayer] = useState<AIPlayer | null>(null);
+  const [selectedTrack, setSelectedTrack] = useState<RacingTrack>('sprint');
 
   useEffect(() => {
     if (!gameId) {
@@ -309,10 +312,17 @@ const MultiplayerGamePage: React.FC = () => {
 
     loadGameData();
     
+    // Get selected track from sessionStorage
+    const trackFromStorage = sessionStorage.getItem(`game_${gameId}_track`) as RacingTrack;
+    if (trackFromStorage) {
+      setSelectedTrack(trackFromStorage);
+      sessionStorage.removeItem(`game_${gameId}_track`);
+    }
+    
     // Check if we should add an AI player
     const aiDifficulty = sessionStorage.getItem(`game_${gameId}_ai`);
     if (aiDifficulty && aiDifficulty !== 'none') {
-      const ai = aiPlayerService.createAIPlayer(gameId, aiDifficulty as any);
+      const ai = aiPlayerService.createAIPlayer(gameId, aiDifficulty as any, trackFromStorage || 'sprint');
       setAiPlayer(ai);
       
       // Mark AI as ready after a short delay
@@ -356,7 +366,10 @@ const MultiplayerGamePage: React.FC = () => {
   // Countdown effect when all players are ready
   useEffect(() => {
     if (!game || !isCreator || game.status !== 'waiting') {
-      setCountdown(null);
+      // Clear countdown if game is not waiting
+      if (countdown !== null) {
+        setCountdown(null);
+      }
       return;
     }
 
@@ -394,6 +407,18 @@ const MultiplayerGamePage: React.FC = () => {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countdown]);
+
+  // Start AI player when game begins
+  useEffect(() => {
+    if (game?.status === 'in_progress' && aiPlayer && !aiPlayer.isComplete && aiPlayer.progress === 0) {
+      // Start the AI player after a short delay (only if not already started)
+      console.log('Starting AI player:', aiPlayer.name);
+      const timer = setTimeout(() => {
+        aiPlayerService.startAIPlayer(aiPlayer.id);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [game?.status, aiPlayer?.id]); // Only depend on game status and AI id
 
   const loadGameData = async () => {
     if (!gameId) return;
@@ -443,14 +468,12 @@ const MultiplayerGamePage: React.FC = () => {
     if (!gameId || !isCreator) return;
     
     try {
+      // Clear countdown immediately before starting
+      setCountdown(null);
+      
       const success = await multiplayerService.startGame(gameId);
       if (success) {
-        // Start AI player if present
-        if (aiPlayer) {
-          setTimeout(() => {
-            aiPlayerService.startAIPlayer(aiPlayer.id);
-          }, 1000);
-        }
+        // AI player will be started by the useEffect when game status changes
         
         // Reload game data to reflect the status change
         await loadGameData();
@@ -460,6 +483,8 @@ const MultiplayerGamePage: React.FC = () => {
     } catch (err) {
       console.error('Error starting game:', err);
       setError('An error occurred while starting the game');
+      // Reset countdown if error
+      setCountdown(null);
     }
   };
 
@@ -658,6 +683,7 @@ const MultiplayerGamePage: React.FC = () => {
               players={players}
               currentUserId={user.id}
               aiPlayer={aiPlayer}
+              track={selectedTrack}
               onComplete={(score, accuracy) => {
                 console.log('Game completed!', { score, accuracy });
                 // Handle game completion

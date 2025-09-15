@@ -112,11 +112,11 @@ const Confirmation: React.FC<ConfirmationProps> = ({ isInvestor, onHome, onDemoV
             </>
           ) : (
             <>
-              Thank you for your interest! We'll review your application and send you
+              Thank you for your interest! Your account has been created successfully.
               <br />
-              an invite code within 48 hours if approved.
+              You can now sign in and start using Hugo.
               <br />
-              In the meantime, check out our demo video to see Hugo in action.
+              Check out our demo video to see Hugo in action.
             </>
           )}
         </ConfirmationText>

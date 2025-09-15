@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { theme } from '../../styles/theme';
 import { useAuth } from '../../contexts/AuthContext';
-import { validateInviteCode, markInviteCodeUsed } from '../../utils/inviteCodes';
+// Invite code validation removed
 
 const fadeIn = keyframes`
   from {
@@ -177,7 +177,7 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
+  // Invite code removed
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -189,28 +189,15 @@ const LoginPage: React.FC = () => {
     console.log('📝 Form submission:', { 
       isSignUp, 
       email, 
-      username, 
-      inviteCode: inviteCode ? 'provided' : 'missing' 
+      username
     });
 
     try {
       if (isSignUp) {
         console.log('🆕 Processing sign up...');
-        // Validate invite code for sign up
-        if (!inviteCode) {
-          throw new Error('Invite code is required to create an account');
-        }
-
-        if (!validateInviteCode(inviteCode)) {
-          throw new Error('Invalid or already used invite code');
-        }
-
         // Create account
-        const { error } = await signUp(email, password, { username, inviteCode });
+        const { error } = await signUp(email, password, { username });
         if (error) throw error;
-
-        // Mark invite code as used
-        markInviteCodeUsed(inviteCode, email);
       } else {
         console.log('🔑 Processing sign in...');
         const { error } = await signIn(email, password);
@@ -237,30 +224,16 @@ const LoginPage: React.FC = () => {
         <Form onSubmit={handleSubmit}>
           <FormContent $key={isSignUp ? 'signup' : 'signin'} key={isSignUp ? 'signup' : 'signin'}>
             {isSignUp && (
-              <>
-                <FormGroup>
-                  <Label>Invite Code *</Label>
-                  <Input
-                    type="text"
-                    value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value)}
-                    placeholder="Enter your invite code"
-                    required={isSignUp}
-                    style={{ textTransform: 'uppercase' }}
-                  />
-                </FormGroup>
-                
-                <FormGroup>
-                  <Label>Username</Label>
-                  <Input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Enter your username"
-                    required={isSignUp}
-                  />
-                </FormGroup>
-              </>
+              <FormGroup>
+                <Label>Username</Label>
+                <Input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter your username"
+                  required={isSignUp}
+                />
+              </FormGroup>
             )}
 
             <FormGroup>
