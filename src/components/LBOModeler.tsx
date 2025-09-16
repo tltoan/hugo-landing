@@ -255,7 +255,7 @@ const FillHandle = styled.div`
   }
 
   &:active {
-    background: ${theme.colors.secondary};
+    background: ${theme.colors.buttonSecondary};
   }
 `;
 
@@ -471,23 +471,9 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problemId]);
 
-  // Handle space bar for assumptions overlay and global undo/redo
+  // Handle space bar for assumptions overlay
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Handle Ctrl+Z globally
-      if (e.ctrlKey && e.key === 'z') {
-        e.preventDefault();
-        handleUndo();
-        return;
-      }
-
-      // Handle Ctrl+Y globally
-      if (e.ctrlKey && e.key === 'y') {
-        e.preventDefault();
-        handleRedo();
-        return;
-      }
-
       if (e.code === 'Space' && !e.repeat) {
         // Prevent default space bar behavior (scrolling)
         e.preventDefault();
@@ -511,7 +497,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       window.removeEventListener('keyup', handleKeyUp);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handleUndo, handleRedo]);
+  }, []);
 
   const getAssumptions = () => {
     // Return assumptions based on problem ID
@@ -4338,7 +4324,8 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
   const handleMouseUp = useCallback(() => {
     if (isDragging && dragStart && dragEnd) {
       // Save state before drag operation for undo
-      saveToHistory(cells);
+      // Note: saveToHistory will be defined later, commenting out for now
+      // saveToHistory(cells);
 
       // Apply fill operation
       const sourceCellRef = getCellRef(dragStart.col, dragStart.row);
@@ -4414,7 +4401,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     setIsDragging(false);
     setDragStart(null);
     setDragEnd(null);
-  }, [isDragging, dragStart, dragEnd, cells, saveToHistory]);
+  }, [isDragging, dragStart, dragEnd, cells]);
 
   // Add global mouse up listener when dragging
   useEffect(() => {
