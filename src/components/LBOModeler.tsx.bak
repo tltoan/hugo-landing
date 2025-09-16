@@ -184,14 +184,14 @@ const HeaderCell = styled.th`
   z-index: 1;
 `;
 
-const DataCell = styled.td<{ $isSelected?: boolean; $isCorrect?: boolean; $hasError?: boolean; $hasHint?: boolean; $isDragTarget?: boolean; $isCopied?: boolean }>`
+const DataCell = styled.td<{ $isSelected?: boolean; $isCorrect?: boolean; $hasError?: boolean; $hasHint?: boolean; $isDragTarget?: boolean }>`
   padding: 4px 8px;
   border: 1px solid rgba(65, 83, 120, 0.2);
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
   background-color: ${props => {
-    if (props.$isDragTarget) return 'rgba(59, 130, 246, 0.1)';
+    if (props.$isDragTarget) return 'rgba(59, 130, 246, 0.05)';
     if (props.$isSelected) return 'rgba(65, 83, 120, 0.1)';
     if (props.$isCorrect) return 'rgba(34, 197, 94, 0.1)';
     if (props.$hasError) return 'rgba(239, 68, 68, 0.1)';
@@ -199,16 +199,9 @@ const DataCell = styled.td<{ $isSelected?: boolean; $isCorrect?: boolean; $hasEr
   }};
 
   ${props => props.$isDragTarget && `
-    border: 2px solid rgba(59, 130, 246, 0.8);
-    background-color: rgba(59, 130, 246, 0.15);
-    box-shadow: inset 0 0 5px rgba(59, 130, 246, 0.2);
+    border: 2px dashed rgba(59, 130, 246, 0.6);
   `};
-
-  ${props => props.$isCopied && `
-    border: 2px dashed ${theme.colors.primary};
-    animation: pulse 1s infinite;
-  `};
-
+  
   ${props => props.$hasHint && `
     border-color: rgba(59, 130, 246, 0.4);
     box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
@@ -239,23 +232,20 @@ const DataCell = styled.td<{ $isSelected?: boolean; $isCorrect?: boolean; $hasEr
 
 const FillHandle = styled.div`
   position: absolute;
-  bottom: -4px;
-  right: -4px;
-  width: 8px;
-  height: 8px;
+  bottom: -3px;
+  right: -3px;
+  width: 6px;
+  height: 6px;
   background: ${theme.colors.primary};
   border: 1px solid white;
   cursor: crosshair;
-  z-index: 10;
-  box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.2s ease;
 
   &:hover {
     background: ${theme.colors.buttonPrimary};
-    transform: scale(1.3);
-  }
-
-  &:active {
-    background: ${theme.colors.secondary};
+    transform: scale(1.2);
   }
 `;
 
@@ -444,8 +434,6 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
   const [selectedCell, setSelectedCell] = useState<{ col: number; row: number } | null>(null);
   const [selectedRange, setSelectedRange] = useState<{ start: { col: number; row: number }; end: { col: number; row: number } } | null>(null);
   const [formulaBarValue, setFormulaBarValue] = useState('');
-  const [isEditingFormula, setIsEditingFormula] = useState(false);
-  const [formulaBarCursorPos, setFormulaBarCursorPos] = useState(0);
   const [timer, setTimer] = useState(0);
   const [score, setScore] = useState(0);
   const [completedCells, setCompletedCells] = useState<Set<string>>(new Set());
@@ -456,11 +444,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ col: number; row: number } | null>(null);
   const [dragEnd, setDragEnd] = useState<{ col: number; row: number } | null>(null);
-  const [copiedCell, setCopiedCell] = useState<{ col: number; row: number; value: string; formula: string } | null>(null);
-  const [history, setHistory] = useState<Array<Record<string, Cell>>>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const formulaBarRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     initializeCells();
@@ -471,23 +455,9 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problemId]);
 
-  // Handle space bar for assumptions overlay and global undo/redo
+  // Handle space bar for assumptions overlay
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Handle Ctrl+Z globally
-      if (e.ctrlKey && e.key === 'z') {
-        e.preventDefault();
-        handleUndo();
-        return;
-      }
-
-      // Handle Ctrl+Y globally
-      if (e.ctrlKey && e.key === 'y') {
-        e.preventDefault();
-        handleRedo();
-        return;
-      }
-
       if (e.code === 'Space' && !e.repeat) {
         // Prevent default space bar behavior (scrolling)
         e.preventDefault();
@@ -510,8 +480,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handleUndo, handleRedo]);
+  }, []);
 
   const getAssumptions = () => {
     // Return assumptions based on problem ID
@@ -1273,12 +1242,9 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     const problemData = problemId === '5' ? getEnergyConglomerateData() :
                        problemId === '4' ? getHealthcareServicesData() :
                        problemId === '3' ? getManufacturingGiantData() :
-                       problemId === '2' ? getRetailMaxData() :
+                       problemId === '2' ? getRetailMaxData() : 
                        getTechCorpData();
     setCells(problemData.cells);
-    // Initialize history with the initial state
-    setHistory([JSON.parse(JSON.stringify(problemData.cells))]);
-    setHistoryIndex(0);
   };
 
   const startTimer = () => {
@@ -4337,9 +4303,6 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
 
   const handleMouseUp = useCallback(() => {
     if (isDragging && dragStart && dragEnd) {
-      // Save state before drag operation for undo
-      saveToHistory(cells);
-
       // Apply fill operation
       const sourceCellRef = getCellRef(dragStart.col, dragStart.row);
       const sourceCell = cells[sourceCellRef];
@@ -4414,7 +4377,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     setIsDragging(false);
     setDragStart(null);
     setDragEnd(null);
-  }, [isDragging, dragStart, dragEnd, cells, saveToHistory]);
+  }, [isDragging, dragStart, dragEnd, cells]);
 
   // Add global mouse up listener when dragging
   useEffect(() => {
@@ -4424,45 +4387,13 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         window.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isDragging, handleMouseUp]);
+  }, [isDragging, dragStart, dragEnd]);
 
   const handleCellClick = (col: number, row: number) => {
-    const clickedCellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
-
-    // If we're editing a formula in the formula bar, insert the cell reference
-    if (isEditingFormula && formulaBarValue.startsWith('=')) {
-      // Insert cell reference at cursor position
-      const beforeCursor = formulaBarValue.slice(0, formulaBarCursorPos);
-      const afterCursor = formulaBarValue.slice(formulaBarCursorPos);
-
-      // Check if we should add an operator before the cell reference
-      const lastChar = beforeCursor[beforeCursor.length - 1];
-      const needsOperator = lastChar && lastChar !== '=' &&
-                           !['(', '+', '-', '*', '/', ',', ' '].includes(lastChar);
-
-      const insertion = needsOperator ? `+${clickedCellRef}` : clickedCellRef;
-      const newFormula = beforeCursor + insertion + afterCursor;
-
-      const newCursorPos = beforeCursor.length + insertion.length;
-      setFormulaBarValue(newFormula);
-      setFormulaBarCursorPos(newCursorPos);
-
-      // Keep focus on formula bar and restore cursor position
-      if (formulaBarRef.current) {
-        formulaBarRef.current.focus();
-        setTimeout(() => {
-          if (formulaBarRef.current) {
-            formulaBarRef.current.setSelectionRange(newCursorPos, newCursorPos);
-          }
-        }, 0);
-      }
-    } else {
-      // Normal cell selection
-      setSelectedCell({ col, row });
-      const cell = cells[clickedCellRef];
-      setFormulaBarValue(cell?.formula || '');
-      setIsEditingFormula(false);
-    }
+    setSelectedCell({ col, row });
+    const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+    const cell = cells[cellRef];
+    setFormulaBarValue(cell?.formula || '');
   };
 
   const focusCellInput = (col: number, row: number) => {
@@ -4480,67 +4411,6 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
   const handleKeyDown = (e: React.KeyboardEvent, col: number, row: number) => {
     const maxCols = problemId === '5' ? 10 : problemId === '2' ? 22 : 7; // J for Energy, V for RetailMax, G for others
     const maxRows = problemId === '5' ? 50 : problemId === '4' ? 38 : problemId === '3' ? 40 : problemId === '2' ? 35 : 25; // 50 for Energy, 38 for Healthcare, 40 for Manufacturing, 35 for RetailMax, 25 for TechCorp
-
-    // Handle Ctrl+Z for undo
-    if (e.ctrlKey && e.key === 'z') {
-      e.preventDefault();
-      handleUndo();
-      return;
-    }
-
-    // Handle Ctrl+Y for redo
-    if (e.ctrlKey && e.key === 'y') {
-      e.preventDefault();
-      handleRedo();
-      return;
-    }
-
-    // Handle Ctrl+C for copy
-    if (e.ctrlKey && e.key === 'c') {
-      e.preventDefault();
-      const cellRef = getCellRef(col, row);
-      const cell = cells[cellRef];
-      if (cell) {
-        setCopiedCell({
-          col,
-          row,
-          value: cell.value || '',
-          formula: cell.formula || ''
-        });
-      }
-      return;
-    }
-
-    // Handle Ctrl+V for paste
-    if (e.ctrlKey && e.key === 'v') {
-      e.preventDefault();
-      if (copiedCell) {
-        const targetCellRef = getCellRef(col, row);
-        if (!cells[targetCellRef]?.isLocked) {
-          if (copiedCell.formula && copiedCell.formula.startsWith('=')) {
-            // Adjust formula references based on relative position
-            const colDiff = col - copiedCell.col;
-            const rowDiff = row - copiedCell.row;
-
-            let adjustedFormula = copiedCell.formula;
-            if (colDiff !== 0) {
-              adjustedFormula = fillFormulaRight(adjustedFormula, copiedCell.col, copiedCell.row, col);
-            }
-            if (rowDiff !== 0) {
-              adjustedFormula = fillFormulaDown(adjustedFormula, col, copiedCell.row, row);
-            }
-
-            handleCellChange(col, row, adjustedFormula);
-            handleCellSubmit(col, row, adjustedFormula);
-          } else {
-            // Just copy the value
-            handleCellChange(col, row, copiedCell.value);
-            handleCellSubmit(col, row, copiedCell.value);
-          }
-        }
-      }
-      return;
-    }
 
     // Handle Ctrl+R for fill right
     if (e.ctrlKey && e.key === 'r') {
@@ -4807,45 +4677,8 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     }
   };
 
-  // Save current state to history before making changes
-  const saveToHistory = (currentCells: Record<string, Cell>) => {
-    // Remove any states after current index if we're not at the end
-    const newHistory = history.slice(0, historyIndex + 1);
-
-    // Add current state
-    newHistory.push(JSON.parse(JSON.stringify(currentCells)));
-
-    // Keep only last 50 states to prevent memory issues
-    if (newHistory.length > 50) {
-      newHistory.shift();
-    }
-
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  };
-
-  const handleUndo = useCallback(() => {
-    if (historyIndex > 0) {
-      const previousState = history[historyIndex - 1];
-      setCells(JSON.parse(JSON.stringify(previousState)));
-      setHistoryIndex(historyIndex - 1);
-    }
-  }, [history, historyIndex]);
-
-  const handleRedo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const nextState = history[historyIndex + 1];
-      setCells(JSON.parse(JSON.stringify(nextState)));
-      setHistoryIndex(historyIndex + 1);
-    }
-  }, [history, historyIndex]);
-
   const handleCellSubmit = (col: number, row: number, value: string) => {
     const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
-
-    // Save current state to history before making changes
-    saveToHistory(cells);
-
     const newCells = { ...cells };
 
     if (!value || value.trim() === '') {
@@ -5014,11 +4847,11 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     const isSelected = selectedCell?.col === col && selectedCell?.row === row;
 
     // Check if cell is in drag target range
-    const isDragTarget = !!(isDragging && dragStart && dragEnd && (
+    const isDragTarget = isDragging && dragStart && dragEnd && (
       (col >= Math.min(dragStart.col, dragEnd.col) && col <= Math.max(dragStart.col, dragEnd.col) &&
        row >= Math.min(dragStart.row, dragEnd.row) && row <= Math.max(dragStart.row, dragEnd.row)) &&
       !(col === dragStart.col && row === dragStart.row) // Exclude the source cell
-    ));
+    );
 
     return (
       <DataCell
@@ -5028,7 +4861,6 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         $isCorrect={completedCells.has(cellRef)}
         $hasHint={cell?.hasHint && !cell?.isLocked && !completedCells.has(cellRef)}
         $isDragTarget={isDragTarget}
-        $isCopied={copiedCell?.col === col && copiedCell?.row === row}
         onClick={() => handleCellClick(col, row)}
         onContextMenu={(e) => handleCellRightClick(e, col, row)}
         onMouseEnter={() => handleCellMouseEnter(col, row)}
@@ -5041,39 +4873,21 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         ) : (
           <>
             <CellInput
-              value={selectedCell?.col === col && selectedCell?.row === row && cell?.formula?.startsWith('=')
-                ? cell.formula
-                : (cell?.value || '')}
-              onChange={(e) => {
-                handleCellChange(col, row, e.target.value);
-                // Also track if we're editing a formula in a cell
-                if (e.target.value.startsWith('=')) {
-                  setIsEditingFormula(true);
-                  setFormulaBarCursorPos(e.target.selectionStart || 0);
-                }
-              }}
-              onFocus={() => {
-                handleCellClick(col, row);
-                // Check if this cell has a formula
-                if (cell?.formula?.startsWith('=')) {
-                  setIsEditingFormula(true);
-                }
-              }}
+              value={cell?.value || ''}
+              onChange={(e) => handleCellChange(col, row, e.target.value)}
+              onFocus={() => handleCellClick(col, row)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === 'Tab') {
                   handleCellSubmit(col, row, e.currentTarget.value);
-                  setIsEditingFormula(false);
                 }
                 handleKeyDown(e, col, row);
               }}
-              onBlur={(e) => {
-                handleCellSubmit(col, row, e.target.value);
-                setIsEditingFormula(false);
-              }}
+              onBlur={(e) => handleCellSubmit(col, row, e.target.value)}
             />
             {/* Show fill handle on selected cell */}
             {isSelected && !cell?.isLocked && (
               <FillHandle
+                style={{ opacity: 1 }}
                 onMouseDown={(e) => handleFillHandleMouseDown(e, col, row)}
               />
             )}
@@ -5369,29 +5183,14 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
                 {selectedCell ? `${String.fromCharCode(65 + selectedCell.col)}${selectedCell.row + 1}` : 'A1'}
               </CellReference>
               <FormulaInput
-                ref={formulaBarRef}
                 value={formulaBarValue}
-                onChange={(e) => {
-                  setFormulaBarValue(e.target.value);
-                  setIsEditingFormula(e.target.value.startsWith('='));
-                  setFormulaBarCursorPos(e.target.selectionStart || 0);
-                }}
-                onSelect={(e) => {
-                  setFormulaBarCursorPos((e.target as HTMLInputElement).selectionStart || 0);
-                }}
-                onFocus={() => {
-                  setIsEditingFormula(formulaBarValue.startsWith('='));
-                }}
-                onBlur={() => {
-                  setIsEditingFormula(false);
-                }}
+                onChange={(e) => setFormulaBarValue(e.target.value)}
                 placeholder="Enter formula or value..."
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && selectedCell) {
                     e.preventDefault();
                     handleCellChange(selectedCell.col, selectedCell.row, formulaBarValue);
                     handleCellSubmit(selectedCell.col, selectedCell.row, formulaBarValue);
-                    setIsEditingFormula(false);
                     // Move down one cell after Enter in formula bar
                     if (selectedCell.row < 24) {
                       const newRow = selectedCell.row + 1;

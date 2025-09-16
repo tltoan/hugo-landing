@@ -73,18 +73,33 @@ export const evaluateFormulaWithRefs = (
       .replace(/\^/g, '**') // Power operator
       .replace(/([0-9.]+)%/g, '($1/100)'); // Percentage to decimal
 
+    // Check if there are any remaining cell references (shouldn't be any at this point)
+    if (/[A-Z]+\d+/.test(expression)) {
+      console.warn('Unresolved cell references in formula:', expression);
+      return '#REF!';
+    }
+
     // Use Function constructor for safer evaluation than eval
     // Only allow basic math operations
     const safeExpression = expression.replace(/[^0-9+\-*/().\s]/g, '');
+
+    // Check if the expression is empty or invalid after sanitization
+    if (!safeExpression.trim() || safeExpression.trim() === '') {
+      return '0';
+    }
+
     const result = new Function('return ' + safeExpression)();
 
     // Format the result
     if (typeof result === 'number') {
+      if (isNaN(result) || !isFinite(result)) {
+        return '#DIV/0!';
+      }
       return result.toFixed(2).replace(/\.00$/, '');
     }
     return result.toString();
   } catch (error) {
-    console.error('Formula evaluation error:', error);
+    console.error('Formula evaluation error:', error, 'Expression:', expression);
     return '#ERROR';
   }
 };
