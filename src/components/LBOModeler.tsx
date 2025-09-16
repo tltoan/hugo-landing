@@ -310,6 +310,86 @@ const HintTooltip = styled.div<{ $isError?: boolean }>`
   }
 `;
 
+const AssumptionsOverlay = styled.div<{ $visible: boolean }>`
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(20, 20, 30, 0.95);
+  color: white;
+  padding: 2rem 3rem;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+  opacity: ${props => props.$visible ? 1 : 0};
+  visibility: ${props => props.$visible ? 'visible' : 'hidden'};
+  transition: opacity 0.15s ease-in-out, visibility 0.15s ease-in-out;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  min-width: 400px;
+  max-width: 600px;
+`;
+
+const AssumptionsTitle = styled.h3`
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 0.75rem;
+`;
+
+const AssumptionSection = styled.div`
+  margin-bottom: 1.5rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const AssumptionLabel = styled.div`
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+`;
+
+const AssumptionRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  font-size: 14px;
+
+  &:not(:last-child) {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+`;
+
+const AssumptionName = styled.span`
+  color: rgba(255, 255, 255, 0.9);
+`;
+
+const AssumptionValue = styled.span`
+  color: #4ade80;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+`;
+
+const OverlayHint = styled.div`
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+`;
+
 interface Cell {
   value: string;
   formula: string;
@@ -336,6 +416,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
   const [showCompletionPopup, setShowCompletionPopup] = useState(false);
   const [showHint, setShowHint] = useState<{cellRef: string; text: string; x: number; y: number; isError?: boolean} | null>(null);
   const [hintUsage, setHintUsage] = useState<Record<string, number>>({});
+  const [showAssumptions, setShowAssumptions] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -346,6 +427,174 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problemId]);
+
+  // Handle space bar for assumptions overlay
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !e.repeat) {
+        // Prevent default space bar behavior (scrolling)
+        e.preventDefault();
+        setShowAssumptions(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setShowAssumptions(false);
+      }
+    };
+
+    // Add global keyboard listeners
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  const getAssumptions = () => {
+    // Return assumptions based on problem ID
+    switch (problemId) {
+      case '1': // TechCorp
+        return {
+          revenue: { label: 'Revenue', items: [
+            { name: 'LTM Revenue', value: '$50M' },
+            { name: 'Growth Rate (Y1-Y5)', value: '15%' }
+          ]},
+          margins: { label: 'Margins', items: [
+            { name: 'EBITDA Margin', value: '25%' },
+            { name: 'D&A % of Revenue', value: '4%' },
+            { name: 'Tax Rate', value: '21%' }
+          ]},
+          transaction: { label: 'Transaction', items: [
+            { name: 'Entry Multiple', value: '12x EBITDA' },
+            { name: 'Debt/EBITDA', value: '7x' },
+            { name: 'Exit Multiple', value: '14x EBITDA' }
+          ]},
+          other: { label: 'Cash Flow', items: [
+            { name: 'Capex % of Revenue', value: '3%' },
+            { name: 'NWC % of Revenue', value: '2%' }
+          ]}
+        };
+
+      case '2': // RetailMax (Quarterly)
+        return {
+          revenue: { label: 'Revenue', items: [
+            { name: 'LTM Revenue', value: '$120M' },
+            { name: 'Q1 Seasonality', value: '70%' },
+            { name: 'Q2-Q3 Growth', value: '5% / 3%' },
+            { name: 'Q4 Holiday Boost', value: '140%' }
+          ]},
+          margins: { label: 'Margins', items: [
+            { name: 'EBITDA Margin', value: '15%' },
+            { name: 'Tax Rate', value: '25%' }
+          ]},
+          transaction: { label: 'Transaction', items: [
+            { name: 'Entry Multiple', value: '9x EBITDA' },
+            { name: 'Debt/EBITDA', value: '6x' },
+            { name: 'Exit Multiple', value: '12x EBITDA' }
+          ]},
+          other: { label: 'Working Capital', items: [
+            { name: 'Inventory Turns', value: '4-6x' },
+            { name: 'DSO', value: '30 days' },
+            { name: 'DPO', value: '45 days' }
+          ]}
+        };
+
+      case '3': // Manufacturing Giant
+        return {
+          revenue: { label: 'Cyclical Revenue', items: [
+            { name: 'Base Revenue', value: '$800M' },
+            { name: 'Y1: Recovery', value: '+5%' },
+            { name: 'Y2: Expansion', value: '+8%' },
+            { name: 'Y3: Late Cycle', value: '+3%' },
+            { name: 'Y4: Downturn', value: '-2%' },
+            { name: 'Y5: Recovery', value: '+6%' }
+          ]},
+          margins: { label: 'Margins', items: [
+            { name: 'EBITDA Margin', value: '18%' },
+            { name: 'D&A', value: '$20M fixed' }
+          ]},
+          transaction: { label: 'Debt Structure', items: [
+            { name: 'Term Loan A', value: '$200M @ L+250' },
+            { name: 'Term Loan B', value: '$200M @ L+450' },
+            { name: 'Revolver', value: '$67M undrawn' }
+          ]},
+          other: { label: 'Working Capital', items: [
+            { name: 'Raw Materials', value: '7% of revenue' },
+            { name: 'Finished Goods', value: '8% of revenue' },
+            { name: 'Total Capex', value: '5% of revenue' }
+          ]}
+        };
+
+      case '4': // Healthcare Services
+        return {
+          revenue: { label: 'Revenue Streams', items: [
+            { name: 'Government', value: '$160M @ 8% growth' },
+            { name: 'Commercial', value: '$120M @ 15% growth' },
+            { name: 'Quality Adjust', value: '-5% to -2%' }
+          ]},
+          margins: { label: 'Margins', items: [
+            { name: 'EBITDA Margin', value: '22-25%' },
+            { name: 'Compliance Cost', value: '$2.5M/year' }
+          ]},
+          transaction: { label: 'Roll-up Strategy', items: [
+            { name: 'Entry Multiple', value: '11x EBITDA' },
+            { name: 'Acquisitions/Year', value: '2 targets' },
+            { name: 'Target Multiple', value: '6-8x EBITDA' },
+            { name: 'Exit Multiple', value: '14x EBITDA' }
+          ]},
+          other: { label: 'Integration', items: [
+            { name: 'Integration Cost', value: '$5M per deal' },
+            { name: 'Synergies', value: '15% of target EBITDA' }
+          ]}
+        };
+
+      case '5': // Energy Conglomerate
+        return {
+          revenue: { label: 'Commodity Prices', items: [
+            { name: 'Oil Price', value: '$75/bbl' },
+            { name: 'Gas Price', value: '$4.50/mmbtu' },
+            { name: 'Hedged %', value: '75% @ $72/bbl' },
+            { name: 'Crack Spread', value: '$11/bbl' }
+          ]},
+          margins: { label: 'Division Performance', items: [
+            { name: 'Upstream EBITDA', value: '35% margin' },
+            { name: 'Midstream EBITDA', value: '60% margin' },
+            { name: 'Downstream EBITDA', value: '8% margin' },
+            { name: 'Renewables EBITDA', value: '40% margin' }
+          ]},
+          transaction: { label: 'ESG Transition', items: [
+            { name: 'Carbon Price', value: '$50/ton by Y5' },
+            { name: 'Green Capex', value: '$200M total' },
+            { name: 'Exit Multiple', value: '8-10x EBITDA' }
+          ]},
+          other: { label: 'Capital Structure', items: [
+            { name: 'RBL Facility', value: '$500M' },
+            { name: 'Term Loan', value: '$1.5B' },
+            { name: 'Target Leverage', value: '3.5x' }
+          ]}
+        };
+
+      default: // Default to TechCorp
+        return {
+          revenue: { label: 'Revenue', items: [
+            { name: 'Starting Revenue', value: '$50M' },
+            { name: 'Growth Rate', value: '15%' }
+          ]},
+          margins: { label: 'Margins', items: [
+            { name: 'EBITDA Margin', value: '25%' }
+          ]},
+          transaction: { label: 'Transaction', items: [
+            { name: 'Entry Multiple', value: '12x' },
+            { name: 'Exit Multiple', value: '14x' }
+          ]}
+        };
+    }
+  };
 
   const getTechCorpData = () => {
     const initialCells: Record<string, Cell> = {};
@@ -5428,6 +5677,62 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           </>
         )}
       </AnimatePresence>
+
+      {/* Assumptions Overlay - Shows when holding space bar */}
+      <AssumptionsOverlay $visible={showAssumptions}>
+        <AssumptionsTitle>📊 KEY ASSUMPTIONS</AssumptionsTitle>
+
+        {(() => {
+          const assumptions = getAssumptions();
+          return (
+            <>
+              <AssumptionSection>
+                <AssumptionLabel>{assumptions.revenue.label}</AssumptionLabel>
+                {assumptions.revenue.items.map((item, idx) => (
+                  <AssumptionRow key={idx}>
+                    <AssumptionName>{item.name}</AssumptionName>
+                    <AssumptionValue>{item.value}</AssumptionValue>
+                  </AssumptionRow>
+                ))}
+              </AssumptionSection>
+
+              <AssumptionSection>
+                <AssumptionLabel>{assumptions.margins.label}</AssumptionLabel>
+                {assumptions.margins.items.map((item, idx) => (
+                  <AssumptionRow key={idx}>
+                    <AssumptionName>{item.name}</AssumptionName>
+                    <AssumptionValue>{item.value}</AssumptionValue>
+                  </AssumptionRow>
+                ))}
+              </AssumptionSection>
+
+              <AssumptionSection>
+                <AssumptionLabel>{assumptions.transaction.label}</AssumptionLabel>
+                {assumptions.transaction.items.map((item, idx) => (
+                  <AssumptionRow key={idx}>
+                    <AssumptionName>{item.name}</AssumptionName>
+                    <AssumptionValue>{item.value}</AssumptionValue>
+                  </AssumptionRow>
+                ))}
+              </AssumptionSection>
+
+              {assumptions.other && (
+                <AssumptionSection>
+                  <AssumptionLabel>{assumptions.other.label}</AssumptionLabel>
+                  {assumptions.other.items.map((item, idx) => (
+                    <AssumptionRow key={idx}>
+                      <AssumptionName>{item.name}</AssumptionName>
+                      <AssumptionValue>{item.value}</AssumptionValue>
+                    </AssumptionRow>
+                  ))}
+                </AssumptionSection>
+              )}
+
+              <OverlayHint>Release SPACE to hide</OverlayHint>
+            </>
+          );
+        })()}
+      </AssumptionsOverlay>
     </LBOContainer>
   );
 };
