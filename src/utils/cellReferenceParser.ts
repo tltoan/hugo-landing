@@ -133,17 +133,20 @@ export const fillFormulaRight = (
 
   const colDiff = toCol - fromCol;
 
-  // Adjust cell references in the formula
-  let adjustedFormula = formula.replace(/\b([A-Z]+)(\d+)\b/g, (match, colLetters, rowNum) => {
+  // Adjust cell references in the formula (case insensitive)
+  let adjustedFormula = formula.replace(/\b([A-Za-z]+)(\d+)\b/g, (match, colLetters, rowNum) => {
     // Check if it's an absolute reference (with $)
     const isAbsoluteCol = match.startsWith('$');
     const isAbsoluteRow = match.includes('$' + rowNum);
 
     if (isAbsoluteCol && isAbsoluteRow) return match;
 
+    // Convert to uppercase for processing
+    const upperColLetters = colLetters.toUpperCase();
+
     let col = 0;
-    for (let i = 0; i < colLetters.length; i++) {
-      col = col * 26 + (colLetters.charCodeAt(i) - 65 + 1);
+    for (let i = 0; i < upperColLetters.length; i++) {
+      col = col * 26 + (upperColLetters.charCodeAt(i) - 65 + 1);
     }
     col--; // Convert to 0-based
 
@@ -161,7 +164,9 @@ export const fillFormulaRight = (
       if (tempCol < 0) break;
     }
 
-    return newColLetters + rowNum;
+    // Preserve the original case of the column letters
+    const resultColLetters = colLetters.match(/[A-Z]/) ? newColLetters : newColLetters.toLowerCase();
+    return resultColLetters + rowNum;
   });
 
   return adjustedFormula;
@@ -181,8 +186,8 @@ export const fillFormulaDown = (
 
   const rowDiff = toRow - fromRow;
 
-  // Adjust cell references in the formula
-  let adjustedFormula = formula.replace(/\b([A-Z]+)(\d+)\b/g, (match, colLetters, rowNum) => {
+  // Adjust cell references in the formula (case insensitive)
+  let adjustedFormula = formula.replace(/\b([A-Za-z]+)(\d+)\b/g, (match, colLetters, rowNum) => {
     // Check if it's an absolute reference (with $)
     const isAbsoluteRow = match.includes('$' + rowNum);
 
