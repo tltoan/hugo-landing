@@ -4,6 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import { theme } from '../styles/theme';
 import { evaluateFormula } from '../utils/formulaParser';
+import {
+  evaluateFormulaWithRefs,
+  fillFormulaRight,
+  fillFormulaDown,
+  getCellRef,
+  parseCellRef,
+  extractCellRefs
+} from '../utils/cellReferenceParser';
 
 const fadeIn = keyframes`
   from {
@@ -320,6 +328,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
   const [activeTab, setActiveTab] = useState<'setup' | 'model' | 'solution' | 'forum'>('setup');
   const [cells, setCells] = useState<Record<string, Cell>>({});
   const [selectedCell, setSelectedCell] = useState<{ col: number; row: number } | null>(null);
+  const [selectedRange, setSelectedRange] = useState<{ start: { col: number; row: number }; end: { col: number; row: number } } | null>(null);
   const [formulaBarValue, setFormulaBarValue] = useState('');
   const [timer, setTimer] = useState(0);
   const [score, setScore] = useState(0);
@@ -4024,7 +4033,151 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
   const handleKeyDown = (e: React.KeyboardEvent, col: number, row: number) => {
     const maxCols = problemId === '5' ? 10 : problemId === '2' ? 22 : 7; // J for Energy, V for RetailMax, G for others
     const maxRows = problemId === '5' ? 50 : problemId === '4' ? 38 : problemId === '3' ? 40 : problemId === '2' ? 35 : 25; // 50 for Energy, 38 for Healthcare, 40 for Manufacturing, 35 for RetailMax, 25 for TechCorp
-    
+
+    // Handle Ctrl+R for fill right
+    if (e.ctrlKey && e.key === 'r') {
+      e.preventDefault();
+
+      if (selectedRange) {
+        // Fill across the selected range
+        const sourceCellRef = getCellRef(selectedRange.start.col, selectedRange.start.row);
+        const sourceCell = cells[sourceCellRef];
+
+        if (sourceCell && sourceCell.formula) {
+          const newCells = { ...cells };
+
+          for (let c = selectedRange.start.col + 1; c <= selectedRange.end.col; c++) {
+            const targetCellRef = getCellRef(c, selectedRange.start.row);
+            if (!newCells[targetCellRef]?.isLocked) {
+              const adjustedFormula = fillFormulaRight(
+                sourceCell.formula,
+                selectedRange.start.col,
+                selectedRange.start.row,
+                c
+              );
+
+              newCells[targetCellRef] = {
+                ...newCells[targetCellRef],
+                formula: adjustedFormula,
+                value: adjustedFormula.startsWith('=')
+                  ? evaluateFormulaWithRefs(adjustedFormula, newCells)
+                  : adjustedFormula
+              };
+            }
+          }
+
+          setCells(newCells);
+          setScore(prev => prev + 50); // Bonus for using fill
+        }
+      } else if (selectedCell) {
+        // If no range selected, fill from current cell to the right
+        const sourceCellRef = getCellRef(col, row);
+        const sourceCell = cells[sourceCellRef];
+
+        if (sourceCell && sourceCell.formula && col < maxCols - 1) {
+          const newCells = { ...cells };
+          const targetCellRef = getCellRef(col + 1, row);
+
+          if (!newCells[targetCellRef]?.isLocked) {
+            const adjustedFormula = fillFormulaRight(sourceCell.formula, col, row, col + 1);
+
+            newCells[targetCellRef] = {
+              ...newCells[targetCellRef],
+              formula: adjustedFormula,
+              value: adjustedFormula.startsWith('=')
+                ? evaluateFormulaWithRefs(adjustedFormula, newCells)
+                : adjustedFormula
+            };
+
+            setCells(newCells);
+            setScore(prev => prev + 25);
+          }
+        }
+      }
+      return;
+    }
+
+    // Handle Ctrl+D for fill down (bonus feature)
+    if (e.ctrlKey && e.key === 'd') {
+      e.preventDefault();
+
+      if (selectedRange) {
+        const sourceCellRef = getCellRef(selectedRange.start.col, selectedRange.start.row);
+        const sourceCell = cells[sourceCellRef];
+
+        if (sourceCell && sourceCell.formula) {
+          const newCells = { ...cells };
+
+          for (let r = selectedRange.start.row + 1; r <= selectedRange.end.row; r++) {
+            const targetCellRef = getCellRef(selectedRange.start.col, r);
+            if (!newCells[targetCellRef]?.isLocked) {
+              const adjustedFormula = fillFormulaDown(
+                sourceCell.formula,
+                selectedRange.start.col,
+                selectedRange.start.row,
+                r
+              );
+
+              newCells[targetCellRef] = {
+                ...newCells[targetCellRef],
+                formula: adjustedFormula,
+                value: adjustedFormula.startsWith('=')
+                  ? evaluateFormulaWithRefs(adjustedFormula, newCells)
+                  : adjustedFormula
+              };
+            }
+          }
+
+          setCells(newCells);
+          setScore(prev => prev + 50);
+        }
+      }
+      return;
+    }
+
+    // Handle Shift+Arrow for range selection
+    if (e.shiftKey && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      e.preventDefault();
+
+      let newCol = col;
+      let newRow = row;
+
+      switch (e.key) {
+        case 'ArrowUp':
+          if (row > 0) newRow = row - 1;
+          break;
+        case 'ArrowDown':
+          if (row < maxRows - 1) newRow = row + 1;
+          break;
+        case 'ArrowLeft':
+          if (col > 0) newCol = col - 1;
+          break;
+        case 'ArrowRight':
+          if (col < maxCols - 1) newCol = col + 1;
+          break;
+      }
+
+      // Update or create the selection range
+      if (!selectedRange) {
+        setSelectedRange({
+          start: { col, row },
+          end: { col: newCol, row: newRow }
+        });
+      } else {
+        setSelectedRange({
+          ...selectedRange,
+          end: { col: newCol, row: newRow }
+        });
+      }
+
+      return;
+    }
+
+    // Clear range selection on normal navigation
+    if (!e.shiftKey) {
+      setSelectedRange(null);
+    }
+
     switch (e.key) {
       case 'Enter':
         e.preventDefault();
@@ -4131,103 +4284,132 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
   const handleCellChange = (col: number, row: number, value: string) => {
     const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
     const newCells = { ...cells };
-    
+
     if (newCells[cellRef] && !newCells[cellRef].isLocked) {
+      // Store the formula but don't evaluate yet
       newCells[cellRef] = {
         ...newCells[cellRef],
-        value: value,
-        formula: value.startsWith('=') ? value : value
+        formula: value,
+        value: value.startsWith('=') ? '' : value // Clear display value for formulas until evaluated
       };
       setCells(newCells);
-      
-      // Only update formula bar, don't validate while typing
+
+      // Update formula bar
       setFormulaBarValue(value);
     }
   };
 
   const handleCellSubmit = (col: number, row: number, value: string) => {
     const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
-    
-    // Proper validation logic - only when submitting
-    const newCompleted = new Set(completedCells);
-    
+    const newCells = { ...cells };
+
     if (!value || value.trim() === '') {
-      // Clear cell - remove from completed
-      newCompleted.delete(cellRef);
+      // Clear cell
+      if (newCells[cellRef] && !newCells[cellRef].isLocked) {
+        newCells[cellRef] = {
+          ...newCells[cellRef],
+          value: '',
+          formula: ''
+        };
+        setCells(newCells);
+        setCompletedCells(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(cellRef);
+          return newSet;
+        });
+      }
     } else if (value.startsWith('=')) {
-      // Formula validation
-      console.log('🔍 Validating formula:', cellRef, value);
-      const isValid = validateFormula(cellRef, value);
-      console.log('✅ Validation result:', isValid);
-      
-      if (isValid) {
-        newCompleted.add(cellRef);
-        setScore(prev => prev + 100); // Higher score for correct formulas
-        setShowHint(null); // Clear any existing error hints
-      } else {
-        newCompleted.delete(cellRef);
-        // Show smart error hint automatically
-        console.log('❌ Formula invalid, showing error hint');
-        const errorHintText = getErrorHint(cellRef, value);
-        console.log('💬 Error hint text:', errorHintText);
-        
-        // Get the position of the cell for proper hint positioning
-        const cellElement = document.querySelector(`[data-cell="${cellRef}"]`) as HTMLElement;
-        let hintX = 400; // fallback
-        let hintY = 300; // fallback
-        
-        if (cellElement) {
-          const rect = cellElement.getBoundingClientRect();
-          hintX = rect.left + 10; // Slight offset from left edge
-          hintY = rect.bottom + 10; // Below the cell
+      // Evaluate formula with cell references
+      try {
+        const evaluatedValue = evaluateFormulaWithRefs(value, newCells, cellRef);
+
+        if (newCells[cellRef] && !newCells[cellRef].isLocked) {
+          newCells[cellRef] = {
+            ...newCells[cellRef],
+            formula: value,
+            value: evaluatedValue
+          };
+          setCells(newCells);
+
+          // Check if formula matches expected answer (if in practice mode)
+          const isValid = validateFormula(cellRef, value);
+
+          if (isValid) {
+            setCompletedCells(prev => new Set(prev).add(cellRef));
+            setScore(prev => prev + 100);
+            setShowHint(null);
+          } else {
+            // Formula evaluates but might not match expected answer
+            console.log('Formula evaluates but may not match expected:', cellRef, value);
+            const errorHintText = getErrorHint(cellRef, value);
+            console.log('Error hint:', errorHintText);
+
+            // Get the position of the cell for proper hint positioning
+            const cellElement = document.querySelector(`[data-cell="${cellRef}"]`) as HTMLElement;
+            let hintX = 400; // fallback
+            let hintY = 300; // fallback
+
+            if (cellElement) {
+              const rect = cellElement.getBoundingClientRect();
+              hintX = rect.left + 10; // Slight offset from left edge
+              hintY = rect.bottom + 10; // Below the cell
+            }
+
+            setShowHint({
+              cellRef,
+              text: errorHintText,
+              x: hintX,
+              y: hintY,
+              isError: true
+            });
+            // Auto-hide error hint after 8 seconds (longer than regular hints)
+            setTimeout(() => setShowHint(null), 8000);
+          }
         }
-        
+      } catch (error) {
+        // Error evaluating formula
+        console.error('Error evaluating formula:', error);
+        const errorMsg = error instanceof Error ? error.message : 'Invalid formula';
+
         setShowHint({
           cellRef,
-          text: errorHintText,
-          x: hintX,
-          y: hintY,
+          text: `Formula error: ${errorMsg}`,
+          x: 400,
+          y: 300,
           isError: true
         });
-        // Auto-hide error hint after 8 seconds (longer than regular hints)
-        setTimeout(() => setShowHint(null), 8000);
+        setTimeout(() => setShowHint(null), 5000);
       }
     } else {
-      // Hard-coded value - check if it's a valid expected result
-      const expectedValues: Record<string, number> = problemId === '2' ? {
-        // RetailMax expected values
-        'C4': 21.0,   // Q1 revenue: 30*0.7 = 21
-        'D4': 22.05,  // Q2 revenue: 21*1.05 = 22.05
-        'E4': 22.71,  // Q3 revenue: 22.05*1.03 = 22.71
-        'F4': 31.79,  // Q4 revenue: 22.71*1.4 = 31.79
-        'C5': 3.15,   // Q1 EBITDA: 21*0.15 = 3.15
-        'D5': 3.31,   // Q2 EBITDA: 22.05*0.15 = 3.31
-        'E5': 3.41,   // Q3 EBITDA: 22.71*0.15 = 3.41
-        'F5': 4.77,   // Q4 EBITDA: 31.79*0.15 = 4.77
-        'B13': 18.0,  // LTM Net Working Capital: 25+8-15 = 18
-        'C10': 5.25,  // Q1 Inventory: 21*0.25 = 5.25
-        'D10': 4.85,  // Q2 Inventory: 22.05*0.22 = 4.85
-        'E10': 4.54,  // Q3 Inventory: 22.71*0.20 = 4.54
-        'F10': 5.72,  // Q4 Inventory: 31.79*0.18 = 5.72
-      } : {
-        // TechCorp expected values
-        'B6': 150.0,  // 12.5 * 12 = Entry EV
-        'B7': 87.5,   // 12.5 * 7 = Total Debt  
-        'B8': 62.5,   // 150 - 87.5 = Equity Check
-      };
-      
-      const numValue = parseFloat(value);
-      const expected = expectedValues[cellRef];
-      
-      if (expected !== undefined && Math.abs(numValue - expected) < 0.1) {
-        newCompleted.add(cellRef);
-        setScore(prev => prev + 50); // Lower score for hard-coded values
-      } else {
-        newCompleted.delete(cellRef);
+      // Regular value (not a formula)
+      if (newCells[cellRef] && !newCells[cellRef].isLocked) {
+        newCells[cellRef] = {
+          ...newCells[cellRef],
+          formula: value,
+          value: value
+        };
+        setCells(newCells);
+
+        // Check if it matches expected hard-coded values (for certain cells)
+        const expectedValues: Record<string, number> = problemId === '2' ? {
+          // RetailMax expected values
+          'C4': 21.0,   // Q1 revenue: 30*0.7 = 21
+          'D4': 22.05,  // Q2 revenue: 21*1.05 = 22.05
+        } : {
+          // TechCorp expected values
+          'B6': 150.0,  // 12.5 * 12 = Entry EV
+          'B7': 87.5,   // 12.5 * 7 = Total Debt
+        };
+
+        const numValue = parseFloat(value);
+        const expected = expectedValues[cellRef];
+
+        if (expected !== undefined && Math.abs(numValue - expected) < 0.1) {
+          setCompletedCells(prev => new Set(prev).add(cellRef));
+          setScore(prev => prev + 50); // Lower score for hard-coded values
+        }
       }
     }
-    
-    setCompletedCells(newCompleted);
   };
 
   const handleGoHome = () => {
