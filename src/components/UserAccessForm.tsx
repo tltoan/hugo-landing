@@ -105,7 +105,7 @@ const ErrorMessage = styled.span`
 `;
 
 interface FormData {
-  name: string;
+  username: string;
   email: string;
   password: string;
 }
@@ -116,7 +116,7 @@ interface UserAccessFormProps {
 
 const UserAccessForm: React.FC<UserAccessFormProps> = ({ onSubmit }) => {
   const [formData, setFormData] = useState<FormData>({
-    name: '',
+    username: '',
     email: '',
     password: '',
   });
@@ -126,8 +126,8 @@ const UserAccessForm: React.FC<UserAccessFormProps> = ({ onSubmit }) => {
   const validateForm = (): boolean => {
     const newErrors: Partial<FormData> = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
+    if (!formData.username.trim()) {
+      newErrors.username = 'Username is required';
     }
 
     if (!formData.email.trim()) {
@@ -178,15 +178,15 @@ const UserAccessForm: React.FC<UserAccessFormProps> = ({ onSubmit }) => {
       <input type="hidden" name="form-name" value="user-access" />
       
       <FormGroup>
-        <Label>Name *</Label>
+        <Label>Username *</Label>
         <Input
           type="text"
-          name="name"
-          value={formData.name}
+          name="username"
+          value={formData.username}
           onChange={handleChange}
-          placeholder="Enter your full name"
+          placeholder="Enter your username"
         />
-        {errors.name && <ErrorMessage>{errors.name}</ErrorMessage>}
+        {errors.username && <ErrorMessage>{errors.username}</ErrorMessage>}
       </FormGroup>
 
       <FormGroup>
