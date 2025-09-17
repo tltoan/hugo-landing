@@ -73,23 +73,6 @@ const Input = styled.input`
   }
 `;
 
-const Select = styled.select`
-  padding: 12px 16px;
-  border: 2px solid rgba(65, 83, 120, 0.2);
-  border-radius: 10px;
-  font-size: ${theme.fontSizes.button};
-  background-color: ${theme.colors.white};
-  transition: all 0.3s ease;
-  cursor: pointer;
-
-  &:focus {
-    outline: none;
-    border-color: ${theme.colors.primary};
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(65, 83, 120, 0.1);
-  }
-`;
-
 const SubmitButton = styled.button`
   padding: 16px 32px;
   background-color: ${theme.colors.buttonPrimary};
@@ -124,9 +107,7 @@ const ErrorMessage = styled.span`
 interface FormData {
   name: string;
   email: string;
-  university: string;
-  currentStatus: string;
-  financeExperience: string;
+  password: string;
 }
 
 interface UserAccessFormProps {
@@ -137,9 +118,7 @@ const UserAccessForm: React.FC<UserAccessFormProps> = ({ onSubmit }) => {
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
-    university: '',
-    currentStatus: '',
-    financeExperience: '',
+    password: '',
   });
 
   const [errors, setErrors] = useState<Partial<FormData>>({});
@@ -157,16 +136,10 @@ const UserAccessForm: React.FC<UserAccessFormProps> = ({ onSubmit }) => {
       newErrors.email = 'Please enter a valid email';
     }
 
-    if (!formData.university.trim()) {
-      newErrors.university = 'University is required';
-    }
-
-    if (!formData.currentStatus) {
-      newErrors.currentStatus = 'Please select your current status';
-    }
-
-    if (!formData.financeExperience) {
-      newErrors.financeExperience = 'Please select your finance experience';
+    if (!formData.password.trim()) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
     }
 
     setErrors(newErrors);
@@ -189,7 +162,7 @@ const UserAccessForm: React.FC<UserAccessFormProps> = ({ onSubmit }) => {
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     if (errors[name as keyof FormData]) {
@@ -229,47 +202,15 @@ const UserAccessForm: React.FC<UserAccessFormProps> = ({ onSubmit }) => {
       </FormGroup>
 
       <FormGroup>
-        <Label>University *</Label>
+        <Label>Password *</Label>
         <Input
-          type="text"
-          name="university"
-          value={formData.university}
+          type="password"
+          name="password"
+          value={formData.password}
           onChange={handleChange}
-          placeholder="Enter your university"
+          placeholder="Create a password (min 6 characters)"
         />
-        {errors.university && <ErrorMessage>{errors.university}</ErrorMessage>}
-      </FormGroup>
-
-      <FormGroup>
-        <Label>Current Status *</Label>
-        <Select
-          name="currentStatus"
-          value={formData.currentStatus}
-          onChange={handleChange}
-        >
-          <option value="">Select your status</option>
-          <option value="undergraduate">Undergraduate Student</option>
-          <option value="mba">MBA Student</option>
-          <option value="graduate">Recent Graduate</option>
-          <option value="professional">Working Professional</option>
-        </Select>
-        {errors.currentStatus && <ErrorMessage>{errors.currentStatus}</ErrorMessage>}
-      </FormGroup>
-
-      <FormGroup>
-        <Label>Finance Experience *</Label>
-        <Select
-          name="financeExperience"
-          value={formData.financeExperience}
-          onChange={handleChange}
-        >
-          <option value="">Select your experience</option>
-          <option value="none">No Experience</option>
-          <option value="interned">Interned at IB/PE</option>
-          <option value="recruiting">Recruiting for IB/PE</option>
-          <option value="working">Working Professional</option>
-        </Select>
-        {errors.financeExperience && <ErrorMessage>{errors.financeExperience}</ErrorMessage>}
+        {errors.password && <ErrorMessage>{errors.password}</ErrorMessage>}
       </FormGroup>
 
       <SubmitButton type="submit">Sign Up</SubmitButton>
