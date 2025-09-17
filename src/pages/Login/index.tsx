@@ -225,12 +225,12 @@ const LoginPage: React.FC = () => {
           <FormContent $key={isSignUp ? 'signup' : 'signin'} key={isSignUp ? 'signup' : 'signin'}>
             {isSignUp && (
               <FormGroup>
-                <Label>Username</Label>
+                <Label>Name</Label>
                 <Input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Enter your username"
+                  placeholder="Enter your full name"
                   required={isSignUp}
                 />
               </FormGroup>
