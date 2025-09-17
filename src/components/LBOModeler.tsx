@@ -30,6 +30,102 @@ const LBOContainer = styled.div`
   padding: 1rem;
 `;
 
+const ShortcutsModal = styled.div<{ $isOpen: boolean }>`
+  display: ${props => props.$isOpen ? 'flex' : 'none'};
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+`;
+
+const ShortcutsContent = styled.div`
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+`;
+
+const ShortcutsHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid ${theme.colors.primary};
+`;
+
+const ShortcutsTitle = styled.h2`
+  font-family: ${theme.fonts.header};
+  color: ${theme.colors.primary};
+  margin: 0;
+`;
+
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: ${theme.colors.text};
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    color: ${theme.colors.primary};
+  }
+`;
+
+const ShortcutSection = styled.div`
+  margin-bottom: 1.5rem;
+`;
+
+const SectionTitle = styled.h3`
+  font-family: ${theme.fonts.header};
+  color: ${theme.colors.primary};
+  font-size: 18px;
+  margin-bottom: 0.5rem;
+`;
+
+const ShortcutList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+`;
+
+const ShortcutItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background-color: ${theme.colors.background};
+  border-radius: 6px;
+`;
+
+const ShortcutKey = styled.code`
+  background-color: ${theme.colors.primary};
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 14px;
+`;
+
+const ShortcutDescription = styled.span`
+  color: ${theme.colors.text};
+  font-size: 14px;
+`;
+
 const Header = styled.header`
   display: flex;
   justify-content: space-between;
@@ -459,6 +555,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
   const [copiedCell, setCopiedCell] = useState<{ col: number; row: number; value: string; formula: string } | null>(null);
   const [history, setHistory] = useState<Array<Record<string, Cell>>>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const formulaBarRef = useRef<HTMLInputElement>(null);
 
@@ -471,9 +568,23 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problemId]);
 
-  // Handle space bar for assumptions overlay
+  // Handle space bar for assumptions overlay and shortcuts modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Show shortcuts modal with ? key
+      if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+        e.preventDefault();
+        setShowShortcuts(true);
+        return;
+      }
+
+      // Close shortcuts modal with Escape
+      if (e.key === 'Escape' && showShortcuts) {
+        e.preventDefault();
+        setShowShortcuts(false);
+        return;
+      }
+
       if (e.code === 'Space' && !e.repeat) {
         // Prevent default space bar behavior (scrolling)
         e.preventDefault();
@@ -497,7 +608,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       window.removeEventListener('keyup', handleKeyUp);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [showShortcuts]);
 
   const getAssumptions = () => {
     // Return assumptions based on problem ID
@@ -5075,6 +5186,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       <Header>
         <Logo onClick={handleGoHome}>Hugo</Logo>
         <HeaderActions>
+          <BackButton onClick={() => setShowShortcuts(true)}>? Shortcuts</BackButton>
           <BackButton onClick={handleGoBack}>← Back to Problems</BackButton>
           <StatsContainer>
             <StatItem>
@@ -6069,6 +6181,134 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           );
         })()}
       </AssumptionsOverlay>
+
+      {/* Keyboard Shortcuts Modal */}
+      <ShortcutsModal $isOpen={showShortcuts} onClick={() => setShowShortcuts(false)}>
+        <ShortcutsContent onClick={(e) => e.stopPropagation()}>
+          <ShortcutsHeader>
+            <ShortcutsTitle>Keyboard Shortcuts</ShortcutsTitle>
+            <CloseButton onClick={() => setShowShortcuts(false)}>×</CloseButton>
+          </ShortcutsHeader>
+
+          <ShortcutSection>
+            <SectionTitle>📋 Copy/Paste/Fill</SectionTitle>
+            <ShortcutList>
+              <ShortcutItem>
+                <ShortcutDescription>Copy cell</ShortcutDescription>
+                <ShortcutKey>Ctrl + C</ShortcutKey>
+              </ShortcutItem>
+              <ShortcutItem>
+                <ShortcutDescription>Paste (with formula adjustment)</ShortcutDescription>
+                <ShortcutKey>Ctrl + V</ShortcutKey>
+              </ShortcutItem>
+              <ShortcutItem>
+                <ShortcutDescription>Fill Right (adjusts formulas)</ShortcutDescription>
+                <ShortcutKey>Ctrl + R</ShortcutKey>
+              </ShortcutItem>
+              <ShortcutItem>
+                <ShortcutDescription>Fill Down (adjusts formulas)</ShortcutDescription>
+                <ShortcutKey>Ctrl + D</ShortcutKey>
+              </ShortcutItem>
+            </ShortcutList>
+          </ShortcutSection>
+
+          <ShortcutSection>
+            <SectionTitle>↔️ Navigation</SectionTitle>
+            <ShortcutList>
+              <ShortcutItem>
+                <ShortcutDescription>Move between cells</ShortcutDescription>
+                <ShortcutKey>Arrow Keys</ShortcutKey>
+              </ShortcutItem>
+              <ShortcutItem>
+                <ShortcutDescription>Select range</ShortcutDescription>
+                <ShortcutKey>Shift + Arrow</ShortcutKey>
+              </ShortcutItem>
+              <ShortcutItem>
+                <ShortcutDescription>Next cell</ShortcutDescription>
+                <ShortcutKey>Tab</ShortcutKey>
+              </ShortcutItem>
+              <ShortcutItem>
+                <ShortcutDescription>Submit & move down</ShortcutDescription>
+                <ShortcutKey>Enter</ShortcutKey>
+              </ShortcutItem>
+            </ShortcutList>
+          </ShortcutSection>
+
+          <ShortcutSection>
+            <SectionTitle>↩️ Undo/Redo</SectionTitle>
+            <ShortcutList>
+              <ShortcutItem>
+                <ShortcutDescription>Undo last action</ShortcutDescription>
+                <ShortcutKey>Ctrl + Z</ShortcutKey>
+              </ShortcutItem>
+              <ShortcutItem>
+                <ShortcutDescription>Redo action</ShortcutDescription>
+                <ShortcutKey>Ctrl + Y</ShortcutKey>
+              </ShortcutItem>
+            </ShortcutList>
+          </ShortcutSection>
+
+          <ShortcutSection>
+            <SectionTitle>👁️ View</SectionTitle>
+            <ShortcutList>
+              <ShortcutItem>
+                <ShortcutDescription>Show assumptions (hold)</ShortcutDescription>
+                <ShortcutKey>Space Bar</ShortcutKey>
+              </ShortcutItem>
+              <ShortcutItem>
+                <ShortcutDescription>Show this help</ShortcutDescription>
+                <ShortcutKey>?</ShortcutKey>
+              </ShortcutItem>
+              <ShortcutItem>
+                <ShortcutDescription>Close dialogs</ShortcutDescription>
+                <ShortcutKey>Escape</ShortcutKey>
+              </ShortcutItem>
+            </ShortcutList>
+          </ShortcutSection>
+
+          <ShortcutSection>
+            <SectionTitle>🖱️ Mouse Actions</SectionTitle>
+            <ShortcutList>
+              <ShortcutItem>
+                <ShortcutDescription>Click cell while typing formula to insert reference</ShortcutDescription>
+                <ShortcutKey>Click</ShortcutKey>
+              </ShortcutItem>
+              <ShortcutItem>
+                <ShortcutDescription>Drag fill handle to fill cells</ShortcutDescription>
+                <ShortcutKey>Drag</ShortcutKey>
+              </ShortcutItem>
+              <ShortcutItem>
+                <ShortcutDescription>Get hint (3 uses)</ShortcutDescription>
+                <ShortcutKey>Right Click</ShortcutKey>
+              </ShortcutItem>
+            </ShortcutList>
+          </ShortcutSection>
+
+          <ShortcutSection>
+            <SectionTitle>📝 Formula Tips</SectionTitle>
+            <ShortcutList>
+              <ShortcutItem>
+                <ShortcutDescription>Start formula with =</ShortcutDescription>
+                <ShortcutKey>=B4*1.25</ShortcutKey>
+              </ShortcutItem>
+              <ShortcutItem>
+                <ShortcutDescription>Cell references (case insensitive)</ShortcutDescription>
+                <ShortcutKey>b4 or B4</ShortcutKey>
+              </ShortcutItem>
+              <ShortcutItem>
+                <ShortcutDescription>Basic operations</ShortcutDescription>
+                <ShortcutKey>+ - * / ^</ShortcutKey>
+              </ShortcutItem>
+            </ShortcutList>
+          </ShortcutSection>
+
+          <div style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: theme.colors.background, borderRadius: '8px' }}>
+            <p style={{ margin: 0, fontSize: '14px', color: theme.colors.text, textAlign: 'center' }}>
+              💡 <strong>Tip:</strong> Use Shift+Arrow to select a range, then Ctrl+R or Ctrl+D to fill formulas across multiple cells!
+            </p>
+          </div>
+        </ShortcutsContent>
+      </ShortcutsModal>
     </LBOContainer>
   );
 };
