@@ -95,11 +95,10 @@ const Button = styled.button<{ $secondary?: boolean }>`
 interface ConfirmationProps {
   isInvestor: boolean;
   onHome: () => void;
-  onDemoVideo: () => void;
   onGetStarted?: () => void;
 }
 
-const Confirmation: React.FC<ConfirmationProps> = ({ isInvestor, onHome, onDemoVideo, onGetStarted }) => {
+const Confirmation: React.FC<ConfirmationProps> = ({ isInvestor, onHome, onGetStarted }) => {
   return (
     <ConfirmationContainer>
       <ConfirmationMessage>
@@ -107,16 +106,12 @@ const Confirmation: React.FC<ConfirmationProps> = ({ isInvestor, onHome, onDemoV
           {isInvestor ? (
             <>
               We'll send you our latest pitch deck within 48 hours.
-              <br />
-              In the meantime, check out our demo video to see Hugo in action.
             </>
           ) : (
             <>
               Thank you for your interest! Your account has been created successfully.
               <br />
               You can now sign in and start using Hugo.
-              <br />
-              Check out our demo video to see Hugo in action.
             </>
           )}
         </ConfirmationText>
@@ -124,7 +119,9 @@ const Confirmation: React.FC<ConfirmationProps> = ({ isInvestor, onHome, onDemoV
       
       <ButtonContainer>
         <Button onClick={onHome}>Home</Button>
-        <Button $secondary onClick={onDemoVideo}>Demo-Video</Button>
+        {onGetStarted && (
+          <Button $secondary onClick={onGetStarted}>Get Started</Button>
+        )}
       </ButtonContainer>
     </ConfirmationContainer>
   );

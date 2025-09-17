@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import Hero from '../../components/Hero';
-import DemoVideo from '../../components/DemoVideo';
 import Modal from '../../components/Modal';
 import UserAccessForm from '../../components/UserAccessForm';
 import InvestorForm from '../../components/InvestorForm';
@@ -91,13 +90,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onUserSignup }) => {
     setShowConfirmation(true);
   };
 
-  const handleDemoClick = () => {
-    const demoSection = document.getElementById('demo-video');
-    if (demoSection) {
-      demoSection.scrollIntoView({ behavior: 'smooth' });
-    }
-    handleCloseModal();
-  };
 
   const handleHome = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -108,10 +100,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onUserSignup }) => {
     <LandingContainer>
       <Hero 
         onOpenModal={handleOpenModal}
-        onDemoClick={handleDemoClick}
         onSignIn={() => navigate('/login')}
       />
-      <DemoVideo />
       
       <Modal
         isOpen={isModalOpen}
@@ -123,7 +113,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onUserSignup }) => {
           <Confirmation
             isInvestor={isInvestor}
             onHome={handleHome}
-            onDemoVideo={handleDemoClick}
             onGetStarted={() => navigate('/login')}
           />
         ) : (

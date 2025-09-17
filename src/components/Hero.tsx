@@ -131,7 +131,6 @@ const Button = styled.button<{ $secondary?: boolean }>`
 
 interface HeroProps {
   onOpenModal: () => void;
-  onDemoClick: () => void;
   onSignIn?: () => void;
 }
 
@@ -169,7 +168,7 @@ const SignInButton = styled.button`
   }
 `;
 
-const Hero: React.FC<HeroProps> = ({ onOpenModal, onDemoClick, onSignIn }) => {
+const Hero: React.FC<HeroProps> = ({ onOpenModal, onSignIn }) => {
   return (
     <HeroContainer>
       {onSignIn && (
@@ -195,7 +194,6 @@ const Hero: React.FC<HeroProps> = ({ onOpenModal, onDemoClick, onSignIn }) => {
       
       <ButtonContainer>
         <Button onClick={onOpenModal}>Request Access</Button>
-        <Button $secondary onClick={onDemoClick}>Demo-Video</Button>
       </ButtonContainer>
     </HeroContainer>
   );
