@@ -4472,6 +4472,15 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
                     ? evaluateFormulaWithRefs(adjustedFormula, newCells)
                     : adjustedFormula
                 };
+
+                // Validate the filled cell
+                if (adjustedFormula.startsWith('=')) {
+                  const isValid = validateFormula(targetCellRef, adjustedFormula);
+                  if (isValid) {
+                    setCompletedCells(prev => new Set(prev).add(targetCellRef));
+                    setScore(prev => prev + 50); // Lower score than manual entry
+                  }
+                }
               }
             }
           }
@@ -4498,6 +4507,15 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
                     ? evaluateFormulaWithRefs(adjustedFormula, newCells)
                     : adjustedFormula
                 };
+
+                // Validate the filled cell
+                if (adjustedFormula.startsWith('=')) {
+                  const isValid = validateFormula(targetCellRef, adjustedFormula);
+                  if (isValid) {
+                    setCompletedCells(prev => new Set(prev).add(targetCellRef));
+                    setScore(prev => prev + 50); // Lower score than manual entry
+                  }
+                }
               }
             }
           }
@@ -4512,7 +4530,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     setIsDragging(false);
     setDragStart(null);
     setDragEnd(null);
-  }, [isDragging, dragStart, dragEnd, cells]);
+  }, [isDragging, dragStart, dragEnd, cells, validateFormula, setCompletedCells, setScore]);
 
   // Add global mouse up listener when dragging
   useEffect(() => {
@@ -4578,6 +4596,68 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
   const handleKeyDown = (e: React.KeyboardEvent, col: number, row: number) => {
     const maxCols = problemId === '5' ? 10 : problemId === '2' ? 22 : 7; // J for Energy, V for RetailMax, G for others
     const maxRows = problemId === '5' ? 50 : problemId === '4' ? 38 : problemId === '3' ? 40 : problemId === '2' ? 35 : 25; // 50 for Energy, 38 for Healthcare, 40 for Manufacturing, 35 for RetailMax, 25 for TechCorp
+
+    // Handle Delete key for clearing cells
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+
+      // If there's a selected range, delete all cells in the range
+      if (selectedRange) {
+        const newCells = { ...cells };
+        const startCol = Math.min(selectedRange.start.col, selectedRange.end.col);
+        const endCol = Math.max(selectedRange.start.col, selectedRange.end.col);
+        const startRow = Math.min(selectedRange.start.row, selectedRange.end.row);
+        const endRow = Math.max(selectedRange.start.row, selectedRange.end.row);
+
+        let hasChanges = false;
+        for (let c = startCol; c <= endCol; c++) {
+          for (let r = startRow; r <= endRow; r++) {
+            const cellRef = getCellRef(c, r);
+            if (!newCells[cellRef]?.isLocked) {
+              newCells[cellRef] = {
+                ...newCells[cellRef],
+                value: '',
+                formula: ''
+              };
+              hasChanges = true;
+
+              // Remove from completed cells if it was there
+              setCompletedCells(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(cellRef);
+                return newSet;
+              });
+            }
+          }
+        }
+
+        if (hasChanges) {
+          setCells(newCells);
+          setSelectedRange(null);
+        }
+      } else {
+        // Delete single cell
+        const cellRef = getCellRef(col, row);
+        const cell = cells[cellRef];
+        if (cell && !cell.isLocked) {
+          const newCells = { ...cells };
+          newCells[cellRef] = {
+            ...cell,
+            value: '',
+            formula: ''
+          };
+          setCells(newCells);
+
+          // Remove from completed cells
+          setCompletedCells(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(cellRef);
+            return newSet;
+          });
+        }
+      }
+      return;
+    }
 
     // Handle Ctrl+Z for undo
     if (e.ctrlKey && e.key === 'z') {
@@ -4800,22 +4880,81 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         
       case 'Tab':
         e.preventDefault();
-        // Move right one cell
-        if (col < maxCols - 1) {
-          const newCol = col + 1;
-          setSelectedCell({ col: newCol, row });
-          const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
-          const newCell = cells[newCellRef];
-          setFormulaBarValue(newCell?.formula || '');
-          focusCellInput(newCol, row);
-        } else if (row < maxRows - 1) {
-          // Wrap to next row
-          const newRow = row + 1;
-          setSelectedCell({ col: 0, row: newRow });
-          const newCellRef = `A${newRow + 1}`;
-          const newCell = cells[newCellRef];
-          setFormulaBarValue(newCell?.formula || '');
-          focusCellInput(0, newRow);
+
+        if (e.shiftKey) {
+          // Shift+Tab: Move left or extend selection left
+          if (col > 0) {
+            const newCol = col - 1;
+
+            if (e.ctrlKey || e.metaKey) {
+              // Ctrl+Shift+Tab: Extend selection left
+              if (!selectedRange) {
+                setSelectedRange({
+                  start: { col, row },
+                  end: { col: newCol, row }
+                });
+              } else {
+                setSelectedRange({
+                  ...selectedRange,
+                  end: { col: newCol, row }
+                });
+              }
+            } else {
+              // Just Shift+Tab: Move left
+              setSelectedCell({ col: newCol, row });
+              const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
+              const newCell = cells[newCellRef];
+              setFormulaBarValue(newCell?.formula || '');
+              focusCellInput(newCol, row);
+              setSelectedRange(null); // Clear any selection
+            }
+          } else if (row > 0) {
+            // Wrap to previous row
+            const newRow = row - 1;
+            setSelectedCell({ col: maxCols - 1, row: newRow });
+            const newCellRef = `${String.fromCharCode(65 + maxCols - 1)}${newRow + 1}`;
+            const newCell = cells[newCellRef];
+            setFormulaBarValue(newCell?.formula || '');
+            focusCellInput(maxCols - 1, newRow);
+            setSelectedRange(null);
+          }
+        } else {
+          // Tab: Move right or extend selection right
+          if (col < maxCols - 1) {
+            const newCol = col + 1;
+
+            if (e.ctrlKey || e.metaKey) {
+              // Ctrl+Tab: Extend selection right
+              if (!selectedRange) {
+                setSelectedRange({
+                  start: { col, row },
+                  end: { col: newCol, row }
+                });
+              } else {
+                setSelectedRange({
+                  ...selectedRange,
+                  end: { col: newCol, row }
+                });
+              }
+            } else {
+              // Just Tab: Move right
+              setSelectedCell({ col: newCol, row });
+              const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
+              const newCell = cells[newCellRef];
+              setFormulaBarValue(newCell?.formula || '');
+              focusCellInput(newCol, row);
+              setSelectedRange(null); // Clear any selection
+            }
+          } else if (row < maxRows - 1) {
+            // Wrap to next row
+            const newRow = row + 1;
+            setSelectedCell({ col: 0, row: newRow });
+            const newCellRef = `A${newRow + 1}`;
+            const newCell = cells[newCellRef];
+            setFormulaBarValue(newCell?.formula || '');
+            focusCellInput(0, newRow);
+            setSelectedRange(null);
+          }
         }
         break;
         
@@ -6226,6 +6365,18 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
               <ShortcutItem>
                 <ShortcutDescription>Next cell</ShortcutDescription>
                 <ShortcutKey>Tab</ShortcutKey>
+              </ShortcutItem>
+              <ShortcutItem>
+                <ShortcutDescription>Previous cell</ShortcutDescription>
+                <ShortcutKey>Shift + Tab</ShortcutKey>
+              </ShortcutItem>
+              <ShortcutItem>
+                <ShortcutDescription>Extend selection right</ShortcutDescription>
+                <ShortcutKey>Ctrl + Tab</ShortcutKey>
+              </ShortcutItem>
+              <ShortcutItem>
+                <ShortcutDescription>Delete cell(s)</ShortcutDescription>
+                <ShortcutKey>Delete / Backspace</ShortcutKey>
               </ShortcutItem>
               <ShortcutItem>
                 <ShortcutDescription>Submit & move down</ShortcutDescription>
