@@ -193,7 +193,7 @@ const Hero: React.FC<HeroProps> = ({ onOpenModal, onSignIn }) => {
       </FutureFeature>
       
       <ButtonContainer>
-        <Button onClick={onOpenModal}>Request Access</Button>
+        <Button onClick={onOpenModal}>Sign Up</Button>
       </ButtonContainer>
     </HeroContainer>
   );

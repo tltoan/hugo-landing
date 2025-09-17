@@ -199,7 +199,7 @@ const UserAccessForm: React.FC<UserAccessFormProps> = ({ onSubmit }) => {
 
   return (
     <FormContainer onSubmit={handleSubmit}>
-      <FormTitle>Request Access Form</FormTitle>
+      <FormTitle>Sign Up</FormTitle>
       
       {/* Hidden input for Netlify Forms */}
       <input type="hidden" name="form-name" value="user-access" />
@@ -272,7 +272,7 @@ const UserAccessForm: React.FC<UserAccessFormProps> = ({ onSubmit }) => {
         {errors.financeExperience && <ErrorMessage>{errors.financeExperience}</ErrorMessage>}
       </FormGroup>
 
-      <SubmitButton type="submit">Request Access</SubmitButton>
+      <SubmitButton type="submit">Sign Up</SubmitButton>
     </FormContainer>
   );
 };
