@@ -294,7 +294,7 @@ const HeaderCell = styled.th`
   z-index: 1;
 `;
 
-const DataCell = styled.td<{ $isSelected?: boolean; $isCorrect?: boolean; $hasError?: boolean; $hasHint?: boolean; $isDragTarget?: boolean; $isCopied?: boolean; $isReferenced?: boolean }>`
+const DataCell = styled.td<{ $isSelected?: boolean; $isInRange?: boolean; $isCorrect?: boolean; $hasError?: boolean; $hasHint?: boolean; $isDragTarget?: boolean; $isCopied?: boolean; $isReferenced?: boolean }>`
   padding: 4px 8px;
   border: 1px solid rgba(65, 83, 120, 0.2);
   cursor: pointer;
@@ -302,12 +302,18 @@ const DataCell = styled.td<{ $isSelected?: boolean; $isCorrect?: boolean; $hasEr
   position: relative;
   background-color: ${props => {
     if (props.$isDragTarget) return 'rgba(59, 130, 246, 0.1)';
+    if (props.$isInRange) return 'rgba(59, 130, 246, 0.08)';
     if (props.$isSelected) return 'rgba(65, 83, 120, 0.1)';
     if (props.$isCorrect) return 'rgba(34, 197, 94, 0.1)';
     if (props.$hasError) return 'rgba(239, 68, 68, 0.1)';
     if (props.$isReferenced) return 'rgba(147, 51, 234, 0.05)';
     return 'white';
   }};
+
+  ${props => props.$isInRange && `
+    border: 1px solid rgba(59, 130, 246, 0.5);
+    background-color: rgba(59, 130, 246, 0.08) !important;
+  `};
 
   ${props => props.$isDragTarget && `
     border: 2px solid rgba(59, 130, 246, 0.8);
@@ -5267,7 +5273,11 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
             handleCellChange(col, row, newFormula);
 
             // Highlight the referenced cell
-            setReferencedCells(prev => new Set([...prev, targetCellRef]));
+            setReferencedCells(prev => {
+              const newSet = new Set(prev);
+              newSet.add(targetCellRef);
+              return newSet;
+            });
           } else {
             // Normal navigation
             const newRow = row - 1;
@@ -5312,7 +5322,11 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
             handleCellChange(col, row, newFormula);
 
             // Highlight the referenced cell
-            setReferencedCells(prev => new Set([...prev, targetCellRef]));
+            setReferencedCells(prev => {
+              const newSet = new Set(prev);
+              newSet.add(targetCellRef);
+              return newSet;
+            });
           } else {
             // Normal navigation
             const newRow = row + 1;
@@ -5357,7 +5371,11 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
             handleCellChange(col, row, newFormula);
 
             // Highlight the referenced cell
-            setReferencedCells(prev => new Set([...prev, targetCellRef]));
+            setReferencedCells(prev => {
+              const newSet = new Set(prev);
+              newSet.add(targetCellRef);
+              return newSet;
+            });
           } else {
             // Normal navigation
             const newCol = col - 1;
@@ -5402,7 +5420,11 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
             handleCellChange(col, row, newFormula);
 
             // Highlight the referenced cell
-            setReferencedCells(prev => new Set([...prev, targetCellRef]));
+            setReferencedCells(prev => {
+              const newSet = new Set(prev);
+              newSet.add(targetCellRef);
+              return newSet;
+            });
           } else {
             // Normal navigation
             const newCol = col + 1;
@@ -5703,6 +5725,14 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     const cell = cells[cellRef];
     const isSelected = selectedCell?.col === col && selectedCell?.row === row;
 
+    // Check if cell is in the selected range (Shift+Arrow selection)
+    const isInSelectedRange = !!(selectedRange && (
+      col >= Math.min(selectedRange.start.col, selectedRange.end.col) &&
+      col <= Math.max(selectedRange.start.col, selectedRange.end.col) &&
+      row >= Math.min(selectedRange.start.row, selectedRange.end.row) &&
+      row <= Math.max(selectedRange.start.row, selectedRange.end.row)
+    ));
+
     // Check if cell is in drag target range
     const isDragTarget = !!(isDragging && dragStart && dragEnd && (
       (col >= Math.min(dragStart.col, dragEnd.col) && col <= Math.max(dragStart.col, dragEnd.col) &&
@@ -5715,6 +5745,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         key={cellRef}
         data-cell={cellRef}
         $isSelected={isSelected}
+        $isInRange={isInSelectedRange}
         $isCorrect={completedCells.has(cellRef)}
         $hasHint={cell?.hasHint && !cell?.isLocked && !completedCells.has(cellRef)}
         $isDragTarget={isDragTarget}
