@@ -4774,8 +4774,13 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       // Normal cell selection (not editing a formula)
       setSelectedCell({ col, row });
       const cell = cells[clickedCellRef];
-      // Show formula in formula bar if it exists, otherwise show value
-      setFormulaBarValue(cell?.formula || cell?.value || '');
+      // Always show formula in formula bar if it exists, otherwise show value
+      // Check if cell has a formula that starts with '='
+      if (cell?.formula && cell.formula.startsWith('=')) {
+        setFormulaBarValue(cell.formula);
+      } else {
+        setFormulaBarValue(cell?.value || '');
+      }
       setIsEditingFormula(false);
       setEditingCell(null);
     }
