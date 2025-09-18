@@ -5242,64 +5242,132 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       case 'ArrowUp':
         e.preventDefault();
         if (row > 0) {
-          const newRow = row - 1;
-          setSelectedCell({ col, row: newRow });
-          const newCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
-          const newCell = cells[newCellRef];
-          if (newCell?.formula && newCell.formula.startsWith('=')) {
-            setFormulaBarValue(newCell.formula);
+          // Check if we're currently editing a formula
+          const currentCellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+          const currentCell = cells[currentCellRef];
+
+          if (editingCell && currentCell?.formula === '=') {
+            // We're starting a formula, insert reference to the cell above
+            const newRow = row - 1;
+            const targetCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
+
+            // Update the current cell with the reference
+            handleCellChange(col, row, '=' + targetCellRef);
+
+            // Keep editing the current cell
+            setReferencedCells(new Set([targetCellRef]));
           } else {
-            setFormulaBarValue(newCell?.value || '');
+            // Normal navigation
+            const newRow = row - 1;
+            setSelectedCell({ col, row: newRow });
+            const newCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
+            const newCell = cells[newCellRef];
+            if (newCell?.formula && newCell.formula.startsWith('=')) {
+              setFormulaBarValue(newCell.formula);
+            } else {
+              setFormulaBarValue(newCell?.value || '');
+            }
+            focusCellInput(col, newRow);
           }
-          focusCellInput(col, newRow);
         }
         break;
         
       case 'ArrowDown':
         e.preventDefault();
         if (row < maxRows - 1) {
-          const newRow = row + 1;
-          setSelectedCell({ col, row: newRow });
-          const newCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
-          const newCell = cells[newCellRef];
-          if (newCell?.formula && newCell.formula.startsWith('=')) {
-            setFormulaBarValue(newCell.formula);
+          // Check if we're currently editing a formula
+          const currentCellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+          const currentCell = cells[currentCellRef];
+
+          if (editingCell && currentCell?.formula === '=') {
+            // We're starting a formula, insert reference to the cell below
+            const newRow = row + 1;
+            const targetCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
+
+            // Update the current cell with the reference
+            handleCellChange(col, row, '=' + targetCellRef);
+
+            // Keep editing the current cell
+            setReferencedCells(new Set([targetCellRef]));
           } else {
-            setFormulaBarValue(newCell?.value || '');
+            // Normal navigation
+            const newRow = row + 1;
+            setSelectedCell({ col, row: newRow });
+            const newCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
+            const newCell = cells[newCellRef];
+            if (newCell?.formula && newCell.formula.startsWith('=')) {
+              setFormulaBarValue(newCell.formula);
+            } else {
+              setFormulaBarValue(newCell?.value || '');
+            }
+            focusCellInput(col, newRow);
           }
-          focusCellInput(col, newRow);
         }
         break;
-        
+
       case 'ArrowLeft':
         e.preventDefault();
         if (col > 0) {
-          const newCol = col - 1;
-          setSelectedCell({ col: newCol, row });
-          const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
-          const newCell = cells[newCellRef];
-          if (newCell?.formula && newCell.formula.startsWith('=')) {
-            setFormulaBarValue(newCell.formula);
+          // Check if we're currently editing a formula
+          const currentCellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+          const currentCell = cells[currentCellRef];
+
+          if (editingCell && currentCell?.formula === '=') {
+            // We're starting a formula, insert reference to the cell to the left
+            const newCol = col - 1;
+            const targetCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
+
+            // Update the current cell with the reference
+            handleCellChange(col, row, '=' + targetCellRef);
+
+            // Keep editing the current cell
+            setReferencedCells(new Set([targetCellRef]));
           } else {
-            setFormulaBarValue(newCell?.value || '');
+            // Normal navigation
+            const newCol = col - 1;
+            setSelectedCell({ col: newCol, row });
+            const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
+            const newCell = cells[newCellRef];
+            if (newCell?.formula && newCell.formula.startsWith('=')) {
+              setFormulaBarValue(newCell.formula);
+            } else {
+              setFormulaBarValue(newCell?.value || '');
+            }
+            focusCellInput(newCol, row);
           }
-          focusCellInput(newCol, row);
         }
         break;
-        
+
       case 'ArrowRight':
         e.preventDefault();
         if (col < maxCols - 1) {
-          const newCol = col + 1;
-          setSelectedCell({ col: newCol, row });
-          const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
-          const newCell = cells[newCellRef];
-          if (newCell?.formula && newCell.formula.startsWith('=')) {
-            setFormulaBarValue(newCell.formula);
+          // Check if we're currently editing a formula
+          const currentCellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+          const currentCell = cells[currentCellRef];
+
+          if (editingCell && currentCell?.formula === '=') {
+            // We're starting a formula, insert reference to the cell to the right
+            const newCol = col + 1;
+            const targetCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
+
+            // Update the current cell with the reference
+            handleCellChange(col, row, '=' + targetCellRef);
+
+            // Keep editing the current cell
+            setReferencedCells(new Set([targetCellRef]));
           } else {
-            setFormulaBarValue(newCell?.value || '');
+            // Normal navigation
+            const newCol = col + 1;
+            setSelectedCell({ col: newCol, row });
+            const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
+            const newCell = cells[newCellRef];
+            if (newCell?.formula && newCell.formula.startsWith('=')) {
+              setFormulaBarValue(newCell.formula);
+            } else {
+              setFormulaBarValue(newCell?.value || '');
+            }
+            focusCellInput(newCol, row);
           }
-          focusCellInput(newCol, row);
         }
         break;
         
