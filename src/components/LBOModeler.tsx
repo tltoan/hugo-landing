@@ -4661,10 +4661,20 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         const afterCursor = formulaBarValue.slice(formulaBarCursorPos);
 
         const lastChar = beforeCursor[beforeCursor.length - 1];
-        const needsOperator = lastChar && lastChar !== '=' &&
-                             !['(', '+', '-', '*', '/', ',', ' '].includes(lastChar);
+        // Only insert cell reference if we're after = or an operator
+        const shouldInsertRef = lastChar && ['=', '(', '+', '-', '*', '/', ',', ' ', '^', '%'].includes(lastChar);
 
-        const insertion = needsOperator ? `+${clickedCellRef}` : clickedCellRef;
+        if (!shouldInsertRef && lastChar !== undefined) {
+          // If not in a position to insert a reference, just change selection
+          setSelectedCell({ col, row });
+          const cell = cells[clickedCellRef];
+          setFormulaBarValue(cell?.formula || cell?.value || '');
+          setIsEditingFormula(false);
+          setReferencedCells(new Set());
+          return;
+        }
+
+        const insertion = clickedCellRef;
         const newFormula = beforeCursor + insertion + afterCursor;
 
         const newCursorPos = beforeCursor.length + insertion.length;
@@ -4691,10 +4701,22 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           const afterCursor = currentFormula.slice(cursorPos);
 
           const lastChar = beforeCursor[beforeCursor.length - 1];
-          const needsOperator = lastChar && lastChar !== '=' &&
-                               !['(', '+', '-', '*', '/', ',', ' '].includes(lastChar);
+          // Only insert cell reference if we're after = or an operator
+          const shouldInsertRef = lastChar && ['=', '(', '+', '-', '*', '/', ',', ' ', '^', '%'].includes(lastChar);
 
-          const insertion = needsOperator ? `+${clickedCellRef}` : clickedCellRef;
+          if (!shouldInsertRef && lastChar !== undefined) {
+            // If not in a position to insert a reference, just change selection
+            setSelectedCell({ col, row });
+            const cell = cells[clickedCellRef];
+            setFormulaBarValue(cell?.formula || cell?.value || '');
+            handleCellSubmit(editingCell.col, editingCell.row, currentFormula);
+            setIsEditingFormula(false);
+            setEditingCell(null);
+            setReferencedCells(new Set());
+            return;
+          }
+
+          const insertion = clickedCellRef;
           const newFormula = beforeCursor + insertion + afterCursor;
 
           // Update the cell
@@ -4712,7 +4734,8 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       // Normal cell selection (not editing a formula)
       setSelectedCell({ col, row });
       const cell = cells[clickedCellRef];
-      setFormulaBarValue(cell?.formula || '');
+      // Show formula in formula bar if it exists, otherwise show value
+      setFormulaBarValue(cell?.formula || cell?.value || '');
       setIsEditingFormula(false);
       setEditingCell(null);
     }
@@ -5010,7 +5033,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           setSelectedCell({ col, row: newRow });
           const newCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
           const newCell = cells[newCellRef];
-          setFormulaBarValue(newCell?.formula || '');
+          setFormulaBarValue(newCell?.formula || newCell?.value || '');
           focusCellInput(col, newRow);
         }
         break;
@@ -5041,7 +5064,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
               setSelectedCell({ col: newCol, row });
               const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
               const newCell = cells[newCellRef];
-              setFormulaBarValue(newCell?.formula || '');
+              setFormulaBarValue(newCell?.formula || newCell?.value || '');
               focusCellInput(newCol, row);
               setSelectedRange(null); // Clear any selection
             }
@@ -5051,7 +5074,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
             setSelectedCell({ col: maxCols - 1, row: newRow });
             const newCellRef = `${String.fromCharCode(65 + maxCols - 1)}${newRow + 1}`;
             const newCell = cells[newCellRef];
-            setFormulaBarValue(newCell?.formula || '');
+            setFormulaBarValue(newCell?.formula || newCell?.value || '');
             focusCellInput(maxCols - 1, newRow);
             setSelectedRange(null);
           }
@@ -5078,7 +5101,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
               setSelectedCell({ col: newCol, row });
               const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
               const newCell = cells[newCellRef];
-              setFormulaBarValue(newCell?.formula || '');
+              setFormulaBarValue(newCell?.formula || newCell?.value || '');
               focusCellInput(newCol, row);
               setSelectedRange(null); // Clear any selection
             }
@@ -5088,7 +5111,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
             setSelectedCell({ col: 0, row: newRow });
             const newCellRef = `A${newRow + 1}`;
             const newCell = cells[newCellRef];
-            setFormulaBarValue(newCell?.formula || '');
+            setFormulaBarValue(newCell?.formula || newCell?.value || '');
             focusCellInput(0, newRow);
             setSelectedRange(null);
           }
@@ -5102,7 +5125,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           setSelectedCell({ col, row: newRow });
           const newCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
           const newCell = cells[newCellRef];
-          setFormulaBarValue(newCell?.formula || '');
+          setFormulaBarValue(newCell?.formula || newCell?.value || '');
           focusCellInput(col, newRow);
         }
         break;
@@ -5114,7 +5137,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           setSelectedCell({ col, row: newRow });
           const newCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
           const newCell = cells[newCellRef];
-          setFormulaBarValue(newCell?.formula || '');
+          setFormulaBarValue(newCell?.formula || newCell?.value || '');
           focusCellInput(col, newRow);
         }
         break;
@@ -5126,7 +5149,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           setSelectedCell({ col: newCol, row });
           const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
           const newCell = cells[newCellRef];
-          setFormulaBarValue(newCell?.formula || '');
+          setFormulaBarValue(newCell?.formula || newCell?.value || '');
           focusCellInput(newCol, row);
         }
         break;
@@ -5138,7 +5161,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           setSelectedCell({ col: newCol, row });
           const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
           const newCell = cells[newCellRef];
-          setFormulaBarValue(newCell?.formula || '');
+          setFormulaBarValue(newCell?.formula || newCell?.value || '');
           focusCellInput(newCol, row);
         }
         break;
@@ -5229,6 +5252,9 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
 
   const handleCellSubmit = (col: number, row: number, value: string) => {
     const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+
+    // Clear referenced cells highlighting when submitting
+    setReferencedCells(new Set());
 
     // Save current state to history before making changes
     saveToHistory(cells);
@@ -5824,7 +5850,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
                       setSelectedCell({ col: selectedCell.col, row: newRow });
                       const newCellRef = `${String.fromCharCode(65 + selectedCell.col)}${newRow + 1}`;
                       const newCell = cells[newCellRef];
-                      setFormulaBarValue(newCell?.formula || '');
+                      setFormulaBarValue(newCell?.formula || newCell?.value || '');
                       focusCellInput(selectedCell.col, newRow);
                     }
                   }
