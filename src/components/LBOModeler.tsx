@@ -613,7 +613,17 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         if (parsed.problemId === problemId &&
             Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000) {
 
-          setCells(parsed.cells || {});
+          // Clean up cells data - ensure formulas are only set for actual formulas
+          const cleanedCells = { ...parsed.cells };
+          Object.keys(cleanedCells).forEach(cellId => {
+            const cell = cleanedCells[cellId];
+            // If the formula field doesn't start with '=', it's not a real formula
+            if (cell.formula && !cell.formula.startsWith('=')) {
+              cell.formula = '';
+            }
+          });
+
+          setCells(cleanedCells);
           setCompletedCells(new Set(parsed.completedCells || []));
           setScore(parsed.score || 0);
           setTimer(parsed.timer || 0);
@@ -665,6 +675,21 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       return () => clearTimeout(saveTimer);
     }
   }, [cells, completedCells, score, saveStateToLocalStorage]);
+
+  // Debug: Monitor cells state changes
+  useEffect(() => {
+    console.log('Cells state updated. Checking for formulas...');
+    // Log specific cells that have formulas
+    Object.keys(cells).forEach(key => {
+      if (cells[key].formula) {
+        console.log(`Cell ${key}:`, {
+          formula: cells[key].formula,
+          value: cells[key].value,
+          isFormula: cells[key].formula.startsWith('=')
+        });
+      }
+    });
+  }, [cells]);
 
   // Handle space bar for assumptions overlay and shortcuts modal
   useEffect(() => {
@@ -919,7 +944,9 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     Object.entries(lockedCells).forEach(([cellId, data]) => {
       initialCells[cellId] = {
         ...initialCells[cellId],
-        ...data
+        ...data,
+        // Ensure locked cells don't have formulas unless explicitly set
+        formula: (data as any).formula || ''
       };
     });
 
@@ -1033,7 +1060,9 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     Object.entries(lockedCells).forEach(([cellId, data]) => {
       initialCells[cellId] = {
         ...initialCells[cellId],
-        ...data
+        ...data,
+        // Ensure locked cells don't have formulas unless explicitly set
+        formula: (data as any).formula || ''
       };
     });
 
@@ -1146,7 +1175,9 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     Object.entries(lockedCells).forEach(([cellId, data]) => {
       initialCells[cellId] = {
         ...initialCells[cellId],
-        ...data
+        ...data,
+        // Ensure locked cells don't have formulas unless explicitly set
+        formula: (data as any).formula || ''
       };
     });
 
@@ -1246,7 +1277,12 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     // Apply locked cells
     Object.entries(lockedCells).forEach(([cellId, cellData]) => {
       if (initialCells[cellId]) {
-        initialCells[cellId] = { ...initialCells[cellId], ...cellData };
+        initialCells[cellId] = {
+          ...initialCells[cellId],
+          ...cellData,
+          // Ensure locked cells don't have formulas unless explicitly set
+          formula: (cellData as any).formula || ''
+        };
       }
     });
     
@@ -1399,7 +1435,12 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     // Apply locked cells
     Object.entries(lockedCells).forEach(([cellId, cellData]) => {
       if (initialCells[cellId]) {
-        initialCells[cellId] = { ...initialCells[cellId], ...cellData };
+        initialCells[cellId] = {
+          ...initialCells[cellId],
+          ...cellData,
+          // Ensure locked cells don't have formulas unless explicitly set
+          formula: (cellData as any).formula || ''
+        };
       }
     });
     
@@ -4774,11 +4815,26 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       // Normal cell selection (not editing a formula)
       setSelectedCell({ col, row });
       const cell = cells[clickedCellRef];
+
+      console.log('Cell clicked:', {
+        clickedCellRef,
+        cell,
+        cellsObject: cells,
+        specificCell: cells[clickedCellRef],
+        formula: cell?.formula,
+        value: cell?.value,
+        hasFormula: cell?.formula?.startsWith('='),
+        formulaType: typeof cell?.formula,
+        formulaLength: cell?.formula?.length
+      });
+
       // Always show formula in formula bar if it exists, otherwise show value
       // Check if cell has a formula that starts with '='
-      if (cell?.formula && cell.formula.startsWith('=')) {
+      if (cell?.formula && typeof cell.formula === 'string' && cell.formula.startsWith('=')) {
+        console.log('Setting formula bar to formula:', cell.formula);
         setFormulaBarValue(cell.formula);
       } else {
+        console.log('Setting formula bar to value:', cell?.value || '', 'because formula is:', cell?.formula);
         setFormulaBarValue(cell?.value || '');
       }
       setIsEditingFormula(false);
@@ -5078,7 +5134,11 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           setSelectedCell({ col, row: newRow });
           const newCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
           const newCell = cells[newCellRef];
-          setFormulaBarValue(newCell?.formula || newCell?.value || '');
+          if (newCell?.formula && newCell.formula.startsWith('=')) {
+            setFormulaBarValue(newCell.formula);
+          } else {
+            setFormulaBarValue(newCell?.value || '');
+          }
           focusCellInput(col, newRow);
         }
         break;
@@ -5109,7 +5169,11 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
               setSelectedCell({ col: newCol, row });
               const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
               const newCell = cells[newCellRef];
-              setFormulaBarValue(newCell?.formula || newCell?.value || '');
+              if (newCell?.formula && newCell.formula.startsWith('=')) {
+            setFormulaBarValue(newCell.formula);
+          } else {
+            setFormulaBarValue(newCell?.value || '');
+          }
               focusCellInput(newCol, row);
               setSelectedRange(null); // Clear any selection
             }
@@ -5119,7 +5183,11 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
             setSelectedCell({ col: maxCols - 1, row: newRow });
             const newCellRef = `${String.fromCharCode(65 + maxCols - 1)}${newRow + 1}`;
             const newCell = cells[newCellRef];
-            setFormulaBarValue(newCell?.formula || newCell?.value || '');
+            if (newCell?.formula && newCell.formula.startsWith('=')) {
+            setFormulaBarValue(newCell.formula);
+          } else {
+            setFormulaBarValue(newCell?.value || '');
+          }
             focusCellInput(maxCols - 1, newRow);
             setSelectedRange(null);
           }
@@ -5146,7 +5214,11 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
               setSelectedCell({ col: newCol, row });
               const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
               const newCell = cells[newCellRef];
-              setFormulaBarValue(newCell?.formula || newCell?.value || '');
+              if (newCell?.formula && newCell.formula.startsWith('=')) {
+            setFormulaBarValue(newCell.formula);
+          } else {
+            setFormulaBarValue(newCell?.value || '');
+          }
               focusCellInput(newCol, row);
               setSelectedRange(null); // Clear any selection
             }
@@ -5156,7 +5228,11 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
             setSelectedCell({ col: 0, row: newRow });
             const newCellRef = `A${newRow + 1}`;
             const newCell = cells[newCellRef];
-            setFormulaBarValue(newCell?.formula || newCell?.value || '');
+            if (newCell?.formula && newCell.formula.startsWith('=')) {
+            setFormulaBarValue(newCell.formula);
+          } else {
+            setFormulaBarValue(newCell?.value || '');
+          }
             focusCellInput(0, newRow);
             setSelectedRange(null);
           }
@@ -5170,7 +5246,11 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           setSelectedCell({ col, row: newRow });
           const newCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
           const newCell = cells[newCellRef];
-          setFormulaBarValue(newCell?.formula || newCell?.value || '');
+          if (newCell?.formula && newCell.formula.startsWith('=')) {
+            setFormulaBarValue(newCell.formula);
+          } else {
+            setFormulaBarValue(newCell?.value || '');
+          }
           focusCellInput(col, newRow);
         }
         break;
@@ -5182,7 +5262,11 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           setSelectedCell({ col, row: newRow });
           const newCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
           const newCell = cells[newCellRef];
-          setFormulaBarValue(newCell?.formula || newCell?.value || '');
+          if (newCell?.formula && newCell.formula.startsWith('=')) {
+            setFormulaBarValue(newCell.formula);
+          } else {
+            setFormulaBarValue(newCell?.value || '');
+          }
           focusCellInput(col, newRow);
         }
         break;
@@ -5194,7 +5278,11 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           setSelectedCell({ col: newCol, row });
           const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
           const newCell = cells[newCellRef];
-          setFormulaBarValue(newCell?.formula || newCell?.value || '');
+          if (newCell?.formula && newCell.formula.startsWith('=')) {
+            setFormulaBarValue(newCell.formula);
+          } else {
+            setFormulaBarValue(newCell?.value || '');
+          }
           focusCellInput(newCol, row);
         }
         break;
@@ -5206,7 +5294,11 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           setSelectedCell({ col: newCol, row });
           const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
           const newCell = cells[newCellRef];
-          setFormulaBarValue(newCell?.formula || newCell?.value || '');
+          if (newCell?.formula && newCell.formula.startsWith('=')) {
+            setFormulaBarValue(newCell.formula);
+          } else {
+            setFormulaBarValue(newCell?.value || '');
+          }
           focusCellInput(newCol, row);
         }
         break;
@@ -5216,7 +5308,11 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         // Cancel editing, restore original value
         const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
         const cell = cells[cellRef];
-        setFormulaBarValue(cell?.formula || '');
+        if (cell?.formula && cell.formula.startsWith('=')) {
+          setFormulaBarValue(cell.formula);
+        } else {
+          setFormulaBarValue(cell?.value || '');
+        }
         break;
         
       case 'F2':
@@ -5326,13 +5422,33 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       try {
         const evaluatedValue = evaluateFormulaWithRefs(value, newCells, cellRef);
 
+        console.log('Storing formula:', {
+          cellRef,
+          formula: value,
+          evaluatedValue,
+          valueType: typeof value,
+          valueStartsWith: value?.startsWith?.('=')
+        });
+
         if (newCells[cellRef] && !newCells[cellRef].isLocked) {
-          newCells[cellRef] = {
+          // Make sure we're storing the formula correctly
+          const updatedCell = {
             ...newCells[cellRef],
-            formula: value,
+            formula: value, // This should be the formula string like "=B4*1.1"
             value: evaluatedValue
           };
-          setCells(newCells);
+
+          // Only update state once using functional update
+          setCells(prevCells => {
+            const newState = {
+              ...prevCells,
+              [cellRef]: updatedCell
+            };
+            console.log('Setting new state for', cellRef, ':', newState[cellRef]);
+            return newState;
+          });
+
+          console.log('Cell after update:', updatedCell, 'Formula stored:', updatedCell.formula);
 
           // Check if formula matches expected answer (if in practice mode)
           const isValid = validateFormula(cellRef, value);
@@ -5388,7 +5504,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       if (newCells[cellRef] && !newCells[cellRef].isLocked) {
         newCells[cellRef] = {
           ...newCells[cellRef],
-          formula: value,
+          formula: '', // Clear formula for non-formula values
           value: value
         };
         setCells(newCells);
@@ -5895,7 +6011,11 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
                       setSelectedCell({ col: selectedCell.col, row: newRow });
                       const newCellRef = `${String.fromCharCode(65 + selectedCell.col)}${newRow + 1}`;
                       const newCell = cells[newCellRef];
-                      setFormulaBarValue(newCell?.formula || newCell?.value || '');
+                      if (newCell?.formula && newCell.formula.startsWith('=')) {
+            setFormulaBarValue(newCell.formula);
+          } else {
+            setFormulaBarValue(newCell?.value || '');
+          }
                       focusCellInput(selectedCell.col, newRow);
                     }
                   }
