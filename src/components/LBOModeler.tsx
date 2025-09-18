@@ -8,9 +8,7 @@ import {
   evaluateFormulaWithRefs,
   fillFormulaRight,
   fillFormulaDown,
-  getCellRef,
-  parseCellRef,
-  extractCellRefs
+  getCellRef
 } from '../utils/cellReferenceParser';
 
 const fadeIn = keyframes`
@@ -168,6 +166,22 @@ const BackButton = styled.button`
   }
 `;
 
+const ClearButton = styled.button`
+  padding: 6px 12px;
+  background-color: transparent;
+  color: #e74c3c;
+  border: 1px solid #e74c3c;
+  border-radius: 15px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: #e74c3c;
+    color: ${theme.colors.white};
+  }
+`;
+
 const StatsContainer = styled.div`
   display: flex;
   gap: 2rem;
@@ -280,7 +294,7 @@ const HeaderCell = styled.th`
   z-index: 1;
 `;
 
-const DataCell = styled.td<{ $isSelected?: boolean; $isCorrect?: boolean; $hasError?: boolean; $hasHint?: boolean; $isDragTarget?: boolean; $isCopied?: boolean }>`
+const DataCell = styled.td<{ $isSelected?: boolean; $isCorrect?: boolean; $hasError?: boolean; $hasHint?: boolean; $isDragTarget?: boolean; $isCopied?: boolean; $isReferenced?: boolean }>`
   padding: 4px 8px;
   border: 1px solid rgba(65, 83, 120, 0.2);
   cursor: pointer;
@@ -291,6 +305,7 @@ const DataCell = styled.td<{ $isSelected?: boolean; $isCorrect?: boolean; $hasEr
     if (props.$isSelected) return 'rgba(65, 83, 120, 0.1)';
     if (props.$isCorrect) return 'rgba(34, 197, 94, 0.1)';
     if (props.$hasError) return 'rgba(239, 68, 68, 0.1)';
+    if (props.$isReferenced) return 'rgba(147, 51, 234, 0.05)';
     return 'white';
   }};
 
@@ -303,6 +318,12 @@ const DataCell = styled.td<{ $isSelected?: boolean; $isCorrect?: boolean; $hasEr
   ${props => props.$isCopied && `
     border: 2px dashed ${theme.colors.primary};
     animation: pulse 1s infinite;
+  `};
+
+  ${props => props.$isReferenced && `
+    border: 2px dashed #9333ea;
+    box-shadow: 0 0 0 1px rgba(147, 51, 234, 0.2);
+    animation: pulse 0.5s ease-in-out;
   `};
 
   ${props => props.$hasHint && `
@@ -542,6 +563,8 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
   const [formulaBarValue, setFormulaBarValue] = useState('');
   const [isEditingFormula, setIsEditingFormula] = useState(false);
   const [formulaBarCursorPos, setFormulaBarCursorPos] = useState(0);
+  const [editingCell, setEditingCell] = useState<{ col: number; row: number } | null>(null);
+  const [referencedCells, setReferencedCells] = useState<Set<string>>(new Set());
   const [timer, setTimer] = useState(0);
   const [score, setScore] = useState(0);
   const [completedCells, setCompletedCells] = useState<Set<string>>(new Set());
@@ -559,14 +582,89 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const formulaBarRef = useRef<HTMLInputElement>(null);
 
+  // Save state to localStorage
+  const saveStateToLocalStorage = useCallback(() => {
+    const stateToSave = {
+      cells,
+      completedCells: Array.from(completedCells),
+      score,
+      timer,
+      problemId,
+      timestamp: Date.now()
+    };
+
+    const key = `hugo_lbo_state_${problemId}`;
+    try {
+      localStorage.setItem(key, JSON.stringify(stateToSave));
+    } catch (e) {
+      console.error('Failed to save state to localStorage:', e);
+    }
+  }, [cells, completedCells, score, timer, problemId]);
+
+  // Load state from localStorage
+  const loadStateFromLocalStorage = useCallback(() => {
+    const key = `hugo_lbo_state_${problemId}`;
+    try {
+      const savedState = localStorage.getItem(key);
+      if (savedState) {
+        const parsed = JSON.parse(savedState);
+
+        // Check if saved state is for the same problem and not too old (24 hours)
+        if (parsed.problemId === problemId &&
+            Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000) {
+
+          setCells(parsed.cells || {});
+          setCompletedCells(new Set(parsed.completedCells || []));
+          setScore(parsed.score || 0);
+          setTimer(parsed.timer || 0);
+
+          return true;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load state from localStorage:', e);
+    }
+    return false;
+  }, [problemId]);
+
+  // Clear saved state
+  const clearSavedState = useCallback(() => {
+    const key = `hugo_lbo_state_${problemId}`;
+    try {
+      localStorage.removeItem(key);
+      initializeCells();
+      setCompletedCells(new Set());
+      setScore(0);
+      setTimer(0);
+    } catch (e) {
+      console.error('Failed to clear saved state:', e);
+    }
+  }, [problemId]);
+
   useEffect(() => {
-    initializeCells();
+    // Try to load saved state first
+    const hasLoadedState = loadStateFromLocalStorage();
+    if (!hasLoadedState) {
+      initializeCells();
+    }
     startTimer();
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problemId]);
+
+  // Auto-save state when cells, score, or completed cells change
+  useEffect(() => {
+    // Don't save immediately on mount
+    if (Object.keys(cells).length > 0) {
+      const saveTimer = setTimeout(() => {
+        saveStateToLocalStorage();
+      }, 1000); // Debounce saves to avoid too frequent writes
+
+      return () => clearTimeout(saveTimer);
+    }
+  }, [cells, completedCells, score, saveStateToLocalStorage]);
 
   // Handle space bar for assumptions overlay and shortcuts modal
   useEffect(() => {
@@ -4542,42 +4640,81 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     }
   }, [isDragging, handleMouseUp]);
 
-  const handleCellClick = (col: number, row: number) => {
+  const handleCellClick = (col: number, row: number, isFromCellInput?: boolean) => {
     const clickedCellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
 
-    // If we're editing a formula in the formula bar, insert the cell reference
-    if (isEditingFormula && formulaBarValue.startsWith('=')) {
-      // Insert cell reference at cursor position
-      const beforeCursor = formulaBarValue.slice(0, formulaBarCursorPos);
-      const afterCursor = formulaBarValue.slice(formulaBarCursorPos);
+    // Check if we're editing a formula (either in formula bar or in a cell)
+    const currentlyEditingFormula = isEditingFormula ||
+      (editingCell && cells[`${String.fromCharCode(65 + editingCell.col)}${editingCell.row + 1}`]?.formula?.startsWith('='));
 
-      // Check if we should add an operator before the cell reference
-      const lastChar = beforeCursor[beforeCursor.length - 1];
-      const needsOperator = lastChar && lastChar !== '=' &&
-                           !['(', '+', '-', '*', '/', ',', ' '].includes(lastChar);
+    // If we're editing a formula anywhere, insert the cell reference
+    if (currentlyEditingFormula && !isFromCellInput) {
+      // Don't insert reference if clicking the same cell that's being edited
+      if (editingCell && editingCell.col === col && editingCell.row === row) {
+        return;
+      }
 
-      const insertion = needsOperator ? `+${clickedCellRef}` : clickedCellRef;
-      const newFormula = beforeCursor + insertion + afterCursor;
+      // Determine which value to update (formula bar or cell input)
+      if (formulaBarRef.current && document.activeElement === formulaBarRef.current) {
+        // Editing in formula bar
+        const beforeCursor = formulaBarValue.slice(0, formulaBarCursorPos);
+        const afterCursor = formulaBarValue.slice(formulaBarCursorPos);
 
-      const newCursorPos = beforeCursor.length + insertion.length;
-      setFormulaBarValue(newFormula);
-      setFormulaBarCursorPos(newCursorPos);
+        const lastChar = beforeCursor[beforeCursor.length - 1];
+        const needsOperator = lastChar && lastChar !== '=' &&
+                             !['(', '+', '-', '*', '/', ',', ' '].includes(lastChar);
 
-      // Keep focus on formula bar and restore cursor position
-      if (formulaBarRef.current) {
-        formulaBarRef.current.focus();
+        const insertion = needsOperator ? `+${clickedCellRef}` : clickedCellRef;
+        const newFormula = beforeCursor + insertion + afterCursor;
+
+        const newCursorPos = beforeCursor.length + insertion.length;
+        setFormulaBarValue(newFormula);
+        setFormulaBarCursorPos(newCursorPos);
+
+        // Keep focus on formula bar
         setTimeout(() => {
           if (formulaBarRef.current) {
+            formulaBarRef.current.focus();
             formulaBarRef.current.setSelectionRange(newCursorPos, newCursorPos);
           }
         }, 0);
+      } else if (editingCell) {
+        // Editing directly in a cell
+        const editingCellRef = `${String.fromCharCode(65 + editingCell.col)}${editingCell.row + 1}`;
+        const currentFormula = cells[editingCellRef]?.formula || '=';
+
+        // Get the input element
+        const cellInput = document.querySelector(`[data-cell="${editingCellRef}"] input`) as HTMLInputElement;
+        if (cellInput) {
+          const cursorPos = cellInput.selectionStart || currentFormula.length;
+          const beforeCursor = currentFormula.slice(0, cursorPos);
+          const afterCursor = currentFormula.slice(cursorPos);
+
+          const lastChar = beforeCursor[beforeCursor.length - 1];
+          const needsOperator = lastChar && lastChar !== '=' &&
+                               !['(', '+', '-', '*', '/', ',', ' '].includes(lastChar);
+
+          const insertion = needsOperator ? `+${clickedCellRef}` : clickedCellRef;
+          const newFormula = beforeCursor + insertion + afterCursor;
+
+          // Update the cell
+          handleCellChange(editingCell.col, editingCell.row, newFormula);
+
+          // Keep focus on the editing cell and update cursor position
+          setTimeout(() => {
+            cellInput.focus();
+            const newCursorPos = beforeCursor.length + insertion.length;
+            cellInput.setSelectionRange(newCursorPos, newCursorPos);
+          }, 0);
+        }
       }
-    } else {
-      // Normal cell selection
+    } else if (!isFromCellInput) {
+      // Normal cell selection (not editing a formula)
       setSelectedCell({ col, row });
       const cell = cells[clickedCellRef];
       setFormulaBarValue(cell?.formula || '');
       setIsEditingFormula(false);
+      setEditingCell(null);
     }
   };
 
@@ -5041,6 +5178,19 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
 
       // Update formula bar
       setFormulaBarValue(value);
+
+      // Extract referenced cells from formula for highlighting
+      if (value.startsWith('=')) {
+        const refs = new Set<string>();
+        const cellRefPattern = /\b([A-Za-z]+)(\d+)\b/g;
+        let match;
+        while ((match = cellRefPattern.exec(value)) !== null) {
+          refs.add(`${match[1].toUpperCase()}${match[2]}`);
+        }
+        setReferencedCells(refs);
+      } else {
+        setReferencedCells(new Set());
+      }
     }
   };
 
@@ -5266,6 +5416,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         $hasHint={cell?.hasHint && !cell?.isLocked && !completedCells.has(cellRef)}
         $isDragTarget={isDragTarget}
         $isCopied={copiedCell?.col === col && copiedCell?.row === row}
+        $isReferenced={referencedCells.has(cellRef)}
         onClick={() => handleCellClick(col, row)}
         onContextMenu={(e) => handleCellRightClick(e, col, row)}
         onMouseEnter={() => handleCellMouseEnter(col, row)}
@@ -5283,14 +5434,19 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
                 : (cell?.value || '')}
               onChange={(e) => {
                 handleCellChange(col, row, e.target.value);
-                // Also track if we're editing a formula in a cell
+                // Track if we're editing a formula
                 if (e.target.value.startsWith('=')) {
                   setIsEditingFormula(true);
+                  setEditingCell({ col, row });
                   setFormulaBarCursorPos(e.target.selectionStart || 0);
+                } else {
+                  setIsEditingFormula(false);
+                  setEditingCell(null);
                 }
               }}
               onFocus={() => {
-                handleCellClick(col, row);
+                handleCellClick(col, row, true);
+                setEditingCell({ col, row });
                 // Check if this cell has a formula
                 if (cell?.formula?.startsWith('=')) {
                   setIsEditingFormula(true);
@@ -5300,12 +5456,21 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
                 if (e.key === 'Enter' || e.key === 'Tab') {
                   handleCellSubmit(col, row, e.currentTarget.value);
                   setIsEditingFormula(false);
+                  setEditingCell(null);
                 }
                 handleKeyDown(e, col, row);
               }}
               onBlur={(e) => {
-                handleCellSubmit(col, row, e.target.value);
-                setIsEditingFormula(false);
+                // Delay blur to allow click event to fire first
+                setTimeout(() => {
+                  // Only submit if we're not clicking on another cell for formula reference
+                  if (!isEditingFormula || e.relatedTarget?.tagName !== 'TD') {
+                    handleCellSubmit(col, row, e.target.value);
+                    setIsEditingFormula(false);
+                    setEditingCell(null);
+                    setReferencedCells(new Set());
+                  }
+                }, 100);
               }}
             />
             {/* Show fill handle on selected cell */}
@@ -5339,6 +5504,14 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
             <StatItem>
               <StatLabel>Progress</StatLabel>
               <StatValue>{getProgress()}%</StatValue>
+            </StatItem>
+            <StatItem>
+              <ClearButton
+                onClick={clearSavedState}
+                title="Clear all progress and start over"
+              >
+                Clear Progress
+              </ClearButton>
             </StatItem>
           </StatsContainer>
         </HeaderActions>
@@ -5610,9 +5783,23 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
                 ref={formulaBarRef}
                 value={formulaBarValue}
                 onChange={(e) => {
-                  setFormulaBarValue(e.target.value);
-                  setIsEditingFormula(e.target.value.startsWith('='));
+                  const value = e.target.value;
+                  setFormulaBarValue(value);
+                  setIsEditingFormula(value.startsWith('='));
                   setFormulaBarCursorPos(e.target.selectionStart || 0);
+
+                  // Extract referenced cells for highlighting
+                  if (value.startsWith('=')) {
+                    const refs = new Set<string>();
+                    const cellRefPattern = /\b([A-Za-z]+)(\d+)\b/g;
+                    let match;
+                    while ((match = cellRefPattern.exec(value)) !== null) {
+                      refs.add(`${match[1].toUpperCase()}${match[2]}`);
+                    }
+                    setReferencedCells(refs);
+                  } else {
+                    setReferencedCells(new Set());
+                  }
                 }}
                 onSelect={(e) => {
                   setFormulaBarCursorPos((e.target as HTMLInputElement).selectionStart || 0);
@@ -5622,6 +5809,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
                 }}
                 onBlur={() => {
                   setIsEditingFormula(false);
+                  setReferencedCells(new Set());
                 }}
                 placeholder="Enter formula or value..."
                 onKeyDown={(e) => {
