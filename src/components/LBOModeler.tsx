@@ -4665,12 +4665,8 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         const shouldInsertRef = lastChar && ['=', '(', '+', '-', '*', '/', ',', ' ', '^', '%'].includes(lastChar);
 
         if (!shouldInsertRef && lastChar !== undefined) {
-          // If not in a position to insert a reference, just change selection
-          setSelectedCell({ col, row });
-          const cell = cells[clickedCellRef];
-          setFormulaBarValue(cell?.formula || cell?.value || '');
-          setIsEditingFormula(false);
-          setReferencedCells(new Set());
+          // If not in a position to insert a reference, don't change selection - just ignore
+          // Keep the formula bar editing active
           return;
         }
 
@@ -4705,14 +4701,8 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           const shouldInsertRef = lastChar && ['=', '(', '+', '-', '*', '/', ',', ' ', '^', '%'].includes(lastChar);
 
           if (!shouldInsertRef && lastChar !== undefined) {
-            // If not in a position to insert a reference, just change selection
-            setSelectedCell({ col, row });
-            const cell = cells[clickedCellRef];
-            setFormulaBarValue(cell?.formula || cell?.value || '');
-            handleCellSubmit(editingCell.col, editingCell.row, currentFormula);
-            setIsEditingFormula(false);
-            setEditingCell(null);
-            setReferencedCells(new Set());
+            // If not in a position to insert a reference, don't submit - just ignore the click
+            // Keep the formula editing active
             return;
           }
 
