@@ -5853,7 +5853,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
                 </thead>
                 <tbody>
                   {(() => {
-                    const numRows = problemId === '5' ? 50 : problemId === '4' ? 38 : problemId === '3' ? 40 : problemId === '2' ? 35 : 25;
+                    const numRows = problemId === '5' ? 50 : problemId === '4' ? 38 : problemId === '3' ? 40 : problemId === '2' ? 35 : 28;
                     const numCols = problemId === '5' ? 10 : problemId === '4' ? 8 : problemId === '2' ? 22 : 7;
                     return [...Array(numRows)].map((_, rowIndex) => (
                       <tr key={rowIndex}>
