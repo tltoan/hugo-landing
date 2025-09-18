@@ -4647,7 +4647,31 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     const currentlyEditingFormula = isEditingFormula ||
       (editingCell && cells[`${String.fromCharCode(65 + editingCell.col)}${editingCell.row + 1}`]?.formula?.startsWith('='));
 
-    // If we're editing a formula anywhere, insert the cell reference
+    // Helper function to check if we should replace the last cell reference
+    const shouldReplaceLastRef = (beforeCursor: string): { replace: boolean, start: number, end: number } => {
+      // Check if cursor is right after a cell reference (e.g., "=B2|" or "=B2+C3|")
+      const cellRefPattern = /([A-Za-z]+\d+)$/;
+      const match = beforeCursor.match(cellRefPattern);
+
+      if (match) {
+        // Check if there's an operator before this cell reference
+        const beforeRef = beforeCursor.slice(0, -match[1].length);
+        const lastCharBeforeRef = beforeRef[beforeRef.length - 1];
+
+        // If the last character before the ref is '=' or an operator, we can replace
+        if (lastCharBeforeRef && ['=', '(', '+', '-', '*', '/', ',', ' ', '^', '%'].includes(lastCharBeforeRef)) {
+          return {
+            replace: true,
+            start: beforeRef.length,
+            end: beforeCursor.length
+          };
+        }
+      }
+
+      return { replace: false, start: 0, end: 0 };
+    };
+
+    // If we're editing a formula anywhere, insert or replace the cell reference
     if (currentlyEditingFormula && !isFromCellInput) {
       // Don't insert reference if clicking the same cell that's being edited
       if (editingCell && editingCell.col === col && editingCell.row === row) {
@@ -4660,20 +4684,33 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         const beforeCursor = formulaBarValue.slice(0, formulaBarCursorPos);
         const afterCursor = formulaBarValue.slice(formulaBarCursorPos);
 
-        const lastChar = beforeCursor[beforeCursor.length - 1];
-        // Only insert cell reference if we're after = or an operator
-        const shouldInsertRef = lastChar && ['=', '(', '+', '-', '*', '/', ',', ' ', '^', '%'].includes(lastChar);
+        // Check if we should replace the last cell reference
+        const replaceInfo = shouldReplaceLastRef(beforeCursor);
 
-        if (!shouldInsertRef && lastChar !== undefined) {
-          // If not in a position to insert a reference, don't change selection - just ignore
-          // Keep the formula bar editing active
-          return;
+        let newFormula: string;
+        let newCursorPos: number;
+
+        if (replaceInfo.replace) {
+          // Replace the last cell reference
+          const beforeRef = formulaBarValue.slice(0, replaceInfo.start);
+          const afterRef = formulaBarValue.slice(replaceInfo.end);
+          newFormula = beforeRef + clickedCellRef + afterRef;
+          newCursorPos = beforeRef.length + clickedCellRef.length;
+        } else {
+          // Check if we can insert a new reference
+          const lastChar = beforeCursor[beforeCursor.length - 1];
+          const shouldInsertRef = lastChar && ['=', '(', '+', '-', '*', '/', ',', ' ', '^', '%'].includes(lastChar);
+
+          if (!shouldInsertRef && lastChar !== undefined) {
+            // Can't insert or replace - ignore the click
+            return;
+          }
+
+          // Insert new reference
+          newFormula = beforeCursor + clickedCellRef + afterCursor;
+          newCursorPos = beforeCursor.length + clickedCellRef.length;
         }
 
-        const insertion = clickedCellRef;
-        const newFormula = beforeCursor + insertion + afterCursor;
-
-        const newCursorPos = beforeCursor.length + insertion.length;
         setFormulaBarValue(newFormula);
         setFormulaBarCursorPos(newCursorPos);
 
@@ -4696,18 +4733,32 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           const beforeCursor = currentFormula.slice(0, cursorPos);
           const afterCursor = currentFormula.slice(cursorPos);
 
-          const lastChar = beforeCursor[beforeCursor.length - 1];
-          // Only insert cell reference if we're after = or an operator
-          const shouldInsertRef = lastChar && ['=', '(', '+', '-', '*', '/', ',', ' ', '^', '%'].includes(lastChar);
+          // Check if we should replace the last cell reference
+          const replaceInfo = shouldReplaceLastRef(beforeCursor);
 
-          if (!shouldInsertRef && lastChar !== undefined) {
-            // If not in a position to insert a reference, don't submit - just ignore the click
-            // Keep the formula editing active
-            return;
+          let newFormula: string;
+          let newCursorPos: number;
+
+          if (replaceInfo.replace) {
+            // Replace the last cell reference
+            const beforeRef = currentFormula.slice(0, replaceInfo.start);
+            const afterRef = currentFormula.slice(replaceInfo.end) + afterCursor;
+            newFormula = beforeRef + clickedCellRef + afterRef;
+            newCursorPos = beforeRef.length + clickedCellRef.length;
+          } else {
+            // Check if we can insert a new reference
+            const lastChar = beforeCursor[beforeCursor.length - 1];
+            const shouldInsertRef = lastChar && ['=', '(', '+', '-', '*', '/', ',', ' ', '^', '%'].includes(lastChar);
+
+            if (!shouldInsertRef && lastChar !== undefined) {
+              // Can't insert or replace - ignore the click
+              return;
+            }
+
+            // Insert new reference
+            newFormula = beforeCursor + clickedCellRef + afterCursor;
+            newCursorPos = beforeCursor.length + clickedCellRef.length;
           }
-
-          const insertion = clickedCellRef;
-          const newFormula = beforeCursor + insertion + afterCursor;
 
           // Update the cell
           handleCellChange(editingCell.col, editingCell.row, newFormula);
@@ -4715,7 +4766,6 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           // Keep focus on the editing cell and update cursor position
           setTimeout(() => {
             cellInput.focus();
-            const newCursorPos = beforeCursor.length + insertion.length;
             cellInput.setSelectionRange(newCursorPos, newCursorPos);
           }, 0);
         }
