@@ -5092,21 +5092,26 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     if (e.shiftKey && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
       e.preventDefault();
 
-      let newCol = col;
-      let newRow = row;
+      // If we have an existing range, expand from its end position
+      // Otherwise start from the current cell
+      const currentEndCol = selectedRange ? selectedRange.end.col : col;
+      const currentEndRow = selectedRange ? selectedRange.end.row : row;
+
+      let newCol = currentEndCol;
+      let newRow = currentEndRow;
 
       switch (e.key) {
         case 'ArrowUp':
-          if (row > 0) newRow = row - 1;
+          if (currentEndRow > 0) newRow = currentEndRow - 1;
           break;
         case 'ArrowDown':
-          if (row < maxRows - 1) newRow = row + 1;
+          if (currentEndRow < maxRows - 1) newRow = currentEndRow + 1;
           break;
         case 'ArrowLeft':
-          if (col > 0) newCol = col - 1;
+          if (currentEndCol > 0) newCol = currentEndCol - 1;
           break;
         case 'ArrowRight':
-          if (col < maxCols - 1) newCol = col + 1;
+          if (currentEndCol < maxCols - 1) newCol = currentEndCol + 1;
           break;
       }
 
@@ -5122,6 +5127,9 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           end: { col: newCol, row: newRow }
         });
       }
+
+      // Move the selected cell to the new end position
+      setSelectedCell({ col: newCol, row: newRow });
 
       return;
     }
