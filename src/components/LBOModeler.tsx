@@ -5262,20 +5262,30 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
 
           if (editingCell && editingCell.col === col && editingCell.row === row &&
               currentCell?.formula?.startsWith('=')) {
-            // We're editing a formula, append reference to the cell above
+            // We're editing a formula
             const newRow = row - 1;
             const targetCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
 
-            // Get the current formula and check last character
             const currentFormula = currentCell.formula || '=';
-            const lastChar = currentFormula[currentFormula.length - 1];
 
-            // If last char is a cell reference letter/number, add operator first
-            let newFormula = currentFormula;
-            if (lastChar && lastChar.match(/[A-Z0-9]/i)) {
-              newFormula += '+';  // Default to addition
+            // Check if the formula is just "=" or "=<cellref>" (no operators)
+            // If so, replace the cell reference instead of appending
+            const simpleFormulaPattern = /^=([A-Za-z]+\d+)?$/;
+            const isSimpleFormula = simpleFormulaPattern.test(currentFormula);
+
+            let newFormula;
+            if (isSimpleFormula) {
+              // Replace the entire formula with just the new cell reference
+              newFormula = '=' + targetCellRef;
+            } else {
+              // Complex formula - check if we should append
+              const lastChar = currentFormula[currentFormula.length - 1];
+              newFormula = currentFormula;
+              if (lastChar && lastChar.match(/[A-Z0-9]/i)) {
+                newFormula += '+';  // Default to addition
+              }
+              newFormula += targetCellRef;
             }
-            newFormula += targetCellRef;
 
             // Update the current cell with the reference
             handleCellChange(col, row, newFormula);
@@ -5311,20 +5321,29 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
 
           if (editingCell && editingCell.col === col && editingCell.row === row &&
               currentCell?.formula?.startsWith('=')) {
-            // We're editing a formula, append reference to the cell below
+            // We're editing a formula
             const newRow = row + 1;
             const targetCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
 
-            // Get the current formula and check last character
             const currentFormula = currentCell.formula || '=';
-            const lastChar = currentFormula[currentFormula.length - 1];
 
-            // If last char is a cell reference letter/number, add operator first
-            let newFormula = currentFormula;
-            if (lastChar && lastChar.match(/[A-Z0-9]/i)) {
-              newFormula += '+';  // Default to addition
+            // Check if the formula is just "=" or "=<cellref>" (no operators)
+            const simpleFormulaPattern = /^=([A-Za-z]+\d+)?$/;
+            const isSimpleFormula = simpleFormulaPattern.test(currentFormula);
+
+            let newFormula;
+            if (isSimpleFormula) {
+              // Replace the entire formula with just the new cell reference
+              newFormula = '=' + targetCellRef;
+            } else {
+              // Complex formula - check if we should append
+              const lastChar = currentFormula[currentFormula.length - 1];
+              newFormula = currentFormula;
+              if (lastChar && lastChar.match(/[A-Z0-9]/i)) {
+                newFormula += '+';  // Default to addition
+              }
+              newFormula += targetCellRef;
             }
-            newFormula += targetCellRef;
 
             // Update the current cell with the reference
             handleCellChange(col, row, newFormula);
@@ -5360,20 +5379,29 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
 
           if (editingCell && editingCell.col === col && editingCell.row === row &&
               currentCell?.formula?.startsWith('=')) {
-            // We're editing a formula, append reference to the cell to the left
+            // We're editing a formula
             const newCol = col - 1;
             const targetCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
 
-            // Get the current formula and check last character
             const currentFormula = currentCell.formula || '=';
-            const lastChar = currentFormula[currentFormula.length - 1];
 
-            // If last char is a cell reference letter/number, add operator first
-            let newFormula = currentFormula;
-            if (lastChar && lastChar.match(/[A-Z0-9]/i)) {
-              newFormula += '+';  // Default to addition
+            // Check if the formula is just "=" or "=<cellref>" (no operators)
+            const simpleFormulaPattern = /^=([A-Za-z]+\d+)?$/;
+            const isSimpleFormula = simpleFormulaPattern.test(currentFormula);
+
+            let newFormula;
+            if (isSimpleFormula) {
+              // Replace the entire formula with just the new cell reference
+              newFormula = '=' + targetCellRef;
+            } else {
+              // Complex formula - check if we should append
+              const lastChar = currentFormula[currentFormula.length - 1];
+              newFormula = currentFormula;
+              if (lastChar && lastChar.match(/[A-Z0-9]/i)) {
+                newFormula += '+';  // Default to addition
+              }
+              newFormula += targetCellRef;
             }
-            newFormula += targetCellRef;
 
             // Update the current cell with the reference
             handleCellChange(col, row, newFormula);
@@ -5409,20 +5437,29 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
 
           if (editingCell && editingCell.col === col && editingCell.row === row &&
               currentCell?.formula?.startsWith('=')) {
-            // We're editing a formula, append reference to the cell to the right
+            // We're editing a formula
             const newCol = col + 1;
             const targetCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
 
-            // Get the current formula and check last character
             const currentFormula = currentCell.formula || '=';
-            const lastChar = currentFormula[currentFormula.length - 1];
 
-            // If last char is a cell reference letter/number, add operator first
-            let newFormula = currentFormula;
-            if (lastChar && lastChar.match(/[A-Z0-9]/i)) {
-              newFormula += '+';  // Default to addition
+            // Check if the formula is just "=" or "=<cellref>" (no operators)
+            const simpleFormulaPattern = /^=([A-Za-z]+\d+)?$/;
+            const isSimpleFormula = simpleFormulaPattern.test(currentFormula);
+
+            let newFormula;
+            if (isSimpleFormula) {
+              // Replace the entire formula with just the new cell reference
+              newFormula = '=' + targetCellRef;
+            } else {
+              // Complex formula - check if we should append
+              const lastChar = currentFormula[currentFormula.length - 1];
+              newFormula = currentFormula;
+              if (lastChar && lastChar.match(/[A-Z0-9]/i)) {
+                newFormula += '+';  // Default to addition
+              }
+              newFormula += targetCellRef;
             }
-            newFormula += targetCellRef;
 
             // Update the current cell with the reference
             handleCellChange(col, row, newFormula);
