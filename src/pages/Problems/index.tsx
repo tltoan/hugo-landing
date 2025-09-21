@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import styled, { keyframes } from 'styled-components';
-import { theme } from '../../styles/theme';
-import { useAuth } from '../../contexts/AuthContext';
-import Header from '../../components/shared/Header';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import styled, { keyframes } from "styled-components";
+import { theme } from "../../styles/theme";
+import { useAuth } from "../../contexts/AuthContext";
+import Header from "../../components/shared/Header";
 
 const fadeInUp = keyframes`
   from {
@@ -46,8 +46,10 @@ const FilterSection = styled.div`
 
 const FilterButton = styled.button<{ $active: boolean }>`
   padding: 12px 24px;
-  background-color: ${props => props.$active ? theme.colors.buttonPrimary : theme.colors.white};
-  color: ${props => props.$active ? theme.colors.white : theme.colors.primary};
+  background-color: ${(props) =>
+    props.$active ? theme.colors.buttonPrimary : theme.colors.white};
+  color: ${(props) =>
+    props.$active ? theme.colors.white : theme.colors.primary};
   border: 2px solid ${theme.colors.buttonPrimary};
   border-radius: 25px;
   font-size: 14px;
@@ -76,9 +78,9 @@ const ProblemCard = styled.div<{ delay?: number }>`
   padding: 2rem;
   box-shadow: 0 10px 30px rgba(65, 83, 120, 0.1);
   transition: all 0.3s ease;
-  animation: ${fadeInUp} 0.8s ease-out ${props => (props.delay || 0) * 0.1}s backwards;
+  animation: ${fadeInUp} 0.8s ease-out ${(props) => (props.delay || 0) * 0.1}s
+    backwards;
   cursor: pointer;
-
   &:hover {
     transform: translateY(-5px);
     box-shadow: 0 15px 40px rgba(65, 83, 120, 0.15);
@@ -101,12 +103,16 @@ const ProblemTitle = styled.h3`
 `;
 
 const DifficultyBadge = styled.span<{ level: string }>`
-  background-color: ${props => {
+  background-color: ${(props) => {
     switch (props.level) {
-      case 'beginner': return '#22c55e';
-      case 'intermediate': return '#f59e0b';
-      case 'advanced': return '#ef4444';
-      default: return theme.colors.primary;
+      case "beginner":
+        return "#22c55e";
+      case "intermediate":
+        return "#f59e0b";
+      case "advanced":
+        return "#ef4444";
+      default:
+        return theme.colors.primary;
     }
   }};
   color: white;
@@ -158,7 +164,7 @@ const StartButton = styled.button`
 interface Problem {
   id: string;
   name: string;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  difficulty: "beginner" | "intermediate" | "advanced";
   description: string;
   timeLimit: number;
   maxScore: number;
@@ -167,90 +173,92 @@ interface Problem {
 // Mock data for now - we'll connect to real data later
 const mockProblems: Problem[] = [
   {
-    id: '1',
-    name: 'TechCorp LBO',
-    difficulty: 'beginner',
-    description: 'A straightforward LBO analysis of a technology company. Perfect for getting started with LBO modeling fundamentals.',
+    id: "1",
+    name: "TechCorp LBO",
+    difficulty: "beginner",
+    description:
+      "A straightforward LBO analysis of a technology company. Perfect for getting started with LBO modeling fundamentals.",
     timeLimit: 45,
-    maxScore: 1000
+    maxScore: 1000,
   },
   {
-    id: '2',
-    name: 'RetailMax Buyout',
-    difficulty: 'beginner',
-    description: 'Analyze the leveraged buyout of a retail chain. Focus on working capital and seasonality considerations.',
+    id: "2",
+    name: "RetailMax Buyout",
+    difficulty: "beginner",
+    description:
+      "Analyze the leveraged buyout of a retail chain. Focus on working capital and seasonality considerations.",
     timeLimit: 50,
-    maxScore: 1000
+    maxScore: 1000,
   },
   {
-    id: '3',
-    name: 'Manufacturing Giant',
-    difficulty: 'intermediate',
-    description: 'Complex manufacturing company LBO with multiple debt tranches and detailed cash flow analysis.',
+    id: "3",
+    name: "Manufacturing Giant",
+    difficulty: "intermediate",
+    description:
+      "Complex manufacturing company LBO with multiple debt tranches and detailed cash flow analysis.",
     timeLimit: 60,
-    maxScore: 1500
+    maxScore: 1500,
   },
   {
-    id: '4',
-    name: 'Healthcare Services',
-    difficulty: 'intermediate',
-    description: 'LBO modeling for a healthcare services company with regulatory considerations and growth scenarios.',
+    id: "4",
+    name: "Healthcare Services",
+    difficulty: "intermediate",
+    description:
+      "LBO modeling for a healthcare services company with regulatory considerations and growth scenarios.",
     timeLimit: 65,
-    maxScore: 1500
+    maxScore: 1500,
   },
   {
-    id: '5',
-    name: 'Energy Conglomerate',
-    difficulty: 'advanced',
-    description: 'Multi-divisional energy company with complex debt structures, commodity hedging, and environmental considerations.',
+    id: "5",
+    name: "Energy Conglomerate",
+    difficulty: "advanced",
+    description:
+      "Multi-divisional energy company with complex debt structures, commodity hedging, and environmental considerations.",
     timeLimit: 90,
-    maxScore: 2000
-  }
+    maxScore: 2000,
+  },
 ];
 
 const ProblemsPage: React.FC = () => {
   // const { user } = useAuth(); // Will be used for tracking user progress
   const navigate = useNavigate();
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
 
   const handleStartProblem = (problemId: string) => {
     navigate(`/problem/${problemId}`);
   };
 
-  const filteredProblems = selectedDifficulty === 'all' 
-    ? mockProblems 
-    : mockProblems.filter(p => p.difficulty === selectedDifficulty);
+  const filteredProblems =
+    selectedDifficulty === "all"
+      ? mockProblems
+      : mockProblems.filter((p) => p.difficulty === selectedDifficulty);
 
   return (
     <PageContainer>
       <Header />
-      
+
       <Content>
         <PageTitle>Practice Problems</PageTitle>
-        
+
         <FilterSection>
-          <FilterButton 
-            $active={selectedDifficulty === 'all'} 
-            onClick={() => setSelectedDifficulty('all')}
-          >
+          <FilterButton
+            $active={selectedDifficulty === "all"}
+            onClick={() => setSelectedDifficulty("all")}>
             All Problems
           </FilterButton>
-          <FilterButton 
-            $active={selectedDifficulty === 'beginner'} 
-            onClick={() => setSelectedDifficulty('beginner')}
-          >
+          <FilterButton
+            $active={selectedDifficulty === "beginner"}
+            onClick={() => setSelectedDifficulty("beginner")}>
             Beginner
           </FilterButton>
-          <FilterButton 
-            $active={selectedDifficulty === 'intermediate'} 
-            onClick={() => setSelectedDifficulty('intermediate')}
-          >
+          <FilterButton
+            $active={selectedDifficulty === "intermediate"}
+            onClick={() => setSelectedDifficulty("intermediate")}>
             Intermediate
           </FilterButton>
-          <FilterButton 
-            $active={selectedDifficulty === 'advanced'} 
-            onClick={() => setSelectedDifficulty('advanced')}
-          >
+          <FilterButton
+            $active={selectedDifficulty === "advanced"}
+            onClick={() => setSelectedDifficulty("advanced")}>
             Advanced
           </FilterButton>
         </FilterSection>

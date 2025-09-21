@@ -697,6 +697,11 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     });
   }, [cells]);
 
+  // Debug: Monitor formula bar value changes
+  useEffect(() => {
+    console.log('Formula bar value changed to:', formulaBarValue, 'Selected cell:', selectedCell ? `${String.fromCharCode(65 + selectedCell.col)}${selectedCell.row + 1}` : 'none');
+  }, [formulaBarValue, selectedCell]);
+
   // Handle space bar for assumptions overlay and shortcuts modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -4587,12 +4592,14 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       const sourceCellRef = getCellRef(dragStart.col, dragStart.row);
       const sourceCell = cells[sourceCellRef];
 
-      if (sourceCell && sourceCell.formula) {
+      if (sourceCell) {
         const newCells = { ...cells };
 
         // Determine fill direction
         const isHorizontal = dragEnd.row === dragStart.row;
         const isVertical = dragEnd.col === dragStart.col;
+
+        console.log('Drag fill - source cell:', sourceCellRef, 'Formula:', sourceCell.formula, 'Value:', sourceCell.value);
 
         if (isHorizontal) {
           // Fill right or left
@@ -4603,28 +4610,34 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
             if (c !== dragStart.col) {
               const targetCellRef = getCellRef(c, dragStart.row);
               if (!newCells[targetCellRef]?.isLocked) {
-                const adjustedFormula = fillFormulaRight(
-                  sourceCell.formula,
-                  dragStart.col,
-                  dragStart.row,
-                  c
-                );
+                if (sourceCell.formula && sourceCell.formula.startsWith('=')) {
+                  // Handle formula fill
+                  const adjustedFormula = fillFormulaRight(
+                    sourceCell.formula,
+                    dragStart.col,
+                    dragStart.row,
+                    c
+                  );
 
-                newCells[targetCellRef] = {
-                  ...newCells[targetCellRef],
-                  formula: adjustedFormula,
-                  value: adjustedFormula.startsWith('=')
-                    ? evaluateFormulaWithRefs(adjustedFormula, newCells)
-                    : adjustedFormula
-                };
+                  newCells[targetCellRef] = {
+                    ...newCells[targetCellRef],
+                    formula: adjustedFormula,
+                    value: evaluateFormulaWithRefs(adjustedFormula, newCells)
+                  };
 
-                // Validate the filled cell
-                if (adjustedFormula.startsWith('=')) {
+                  // Validate the filled cell
                   const isValid = validateFormula(targetCellRef, adjustedFormula);
                   if (isValid) {
                     setCompletedCells(prev => new Set(prev).add(targetCellRef));
                     setScore(prev => prev + 50); // Lower score than manual entry
                   }
+                } else {
+                  // Just copy the value
+                  newCells[targetCellRef] = {
+                    ...newCells[targetCellRef],
+                    formula: '',
+                    value: sourceCell.value
+                  };
                 }
               }
             }
@@ -4638,28 +4651,34 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
             if (r !== dragStart.row) {
               const targetCellRef = getCellRef(dragStart.col, r);
               if (!newCells[targetCellRef]?.isLocked) {
-                const adjustedFormula = fillFormulaDown(
-                  sourceCell.formula,
-                  dragStart.col,
-                  dragStart.row,
-                  r
-                );
+                if (sourceCell.formula && sourceCell.formula.startsWith('=')) {
+                  // Handle formula fill
+                  const adjustedFormula = fillFormulaDown(
+                    sourceCell.formula,
+                    dragStart.col,
+                    dragStart.row,
+                    r
+                  );
 
-                newCells[targetCellRef] = {
-                  ...newCells[targetCellRef],
-                  formula: adjustedFormula,
-                  value: adjustedFormula.startsWith('=')
-                    ? evaluateFormulaWithRefs(adjustedFormula, newCells)
-                    : adjustedFormula
-                };
+                  newCells[targetCellRef] = {
+                    ...newCells[targetCellRef],
+                    formula: adjustedFormula,
+                    value: evaluateFormulaWithRefs(adjustedFormula, newCells)
+                  };
 
-                // Validate the filled cell
-                if (adjustedFormula.startsWith('=')) {
+                  // Validate the filled cell
                   const isValid = validateFormula(targetCellRef, adjustedFormula);
                   if (isValid) {
                     setCompletedCells(prev => new Set(prev).add(targetCellRef));
                     setScore(prev => prev + 50); // Lower score than manual entry
                   }
+                } else {
+                  // Just copy the value
+                  newCells[targetCellRef] = {
+                    ...newCells[targetCellRef],
+                    formula: '',
+                    value: sourceCell.value
+                  };
                 }
               }
             }
@@ -4836,11 +4855,20 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
 
       // Always show formula in formula bar if it exists, otherwise show value
       // Check if cell has a formula that starts with '='
+      console.log('Cell click - checking cell:', clickedCellRef, 'Cell data:', cell, 'Formula:', cell?.formula, 'Value:', cell?.value);
+      console.log('Formula check:', {
+        hasFormula: !!cell?.formula,
+        formulaValue: cell?.formula,
+        startsWithEquals: cell?.formula?.startsWith?.('='),
+        formulaType: typeof cell?.formula,
+        formulaLength: cell?.formula?.length,
+        firstChar: cell?.formula?.[0]
+      });
       if (cell?.formula && typeof cell.formula === 'string' && cell.formula.startsWith('=')) {
         console.log('Setting formula bar to formula:', cell.formula);
         setFormulaBarValue(cell.formula);
       } else {
-        console.log('Setting formula bar to value:', cell?.value || '', 'because formula is:', cell?.formula);
+        console.log('Setting formula bar to value:', cell?.value || '', 'because formula is:', cell?.formula, 'Type:', typeof cell?.formula);
         setFormulaBarValue(cell?.value || '');
       }
       setIsEditingFormula(false);
@@ -4861,6 +4889,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent, col: number, row: number) => {
+    console.log('handleKeyDown called - key:', e.key, 'col:', col, 'row:', row, 'editingCell:', editingCell);
     const maxCols = problemId === '5' ? 10 : problemId === '2' ? 22 : 7; // J for Energy, V for RetailMax, G for others
     const maxRows = problemId === '5' ? 50 : problemId === '4' ? 38 : problemId === '3' ? 40 : problemId === '2' ? 35 : 25; // 50 for Energy, 38 for Healthcare, 40 for Manufacturing, 35 for RetailMax, 25 for TechCorp
 
@@ -4992,35 +5021,83 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       e.preventDefault();
 
       if (selectedRange) {
-        // Fill across the selected range
-        const sourceCellRef = getCellRef(selectedRange.start.col, selectedRange.start.row);
-        const sourceCell = cells[sourceCellRef];
+        // Fill across the selected range - Excel behavior: fill from leftmost column to all cells to the right
+        let newCells = { ...cells };
 
-        if (sourceCell && sourceCell.formula) {
-          const newCells = { ...cells };
+        // First, ensure any pending edits are submitted to the newCells object
+        const inputElement = e.target as HTMLInputElement;
+        if (inputElement && inputElement.value && selectedCell) {
+          const currentCellRef = getCellRef(selectedCell.col, selectedCell.row);
+          const value = inputElement.value;
+          newCells[currentCellRef] = {
+            ...newCells[currentCellRef],
+            value: value.startsWith('=') ? evaluateFormulaWithRefs(value, newCells) : value,
+            formula: value.startsWith('=') ? value : ''
+          };
+        }
+        const minCol = Math.min(selectedRange.start.col, selectedRange.end.col);
+        const maxCol = Math.max(selectedRange.start.col, selectedRange.end.col);
+        const minRow = Math.min(selectedRange.start.row, selectedRange.end.row);
+        const maxRow = Math.max(selectedRange.start.row, selectedRange.end.row);
 
-          for (let c = selectedRange.start.col + 1; c <= selectedRange.end.col; c++) {
-            const targetCellRef = getCellRef(c, selectedRange.start.row);
-            if (!newCells[targetCellRef]?.isLocked) {
-              const adjustedFormula = fillFormulaRight(
-                sourceCell.formula,
-                selectedRange.start.col,
-                selectedRange.start.row,
-                c
-              );
+        // For each row in the range
+        for (let r = minRow; r <= maxRow; r++) {
+          // Get the source cell from the leftmost column
+          const sourceCellRef = getCellRef(minCol, r);
+          const sourceCell = newCells[sourceCellRef];  // Use newCells which has the pending edit
 
-              newCells[targetCellRef] = {
-                ...newCells[targetCellRef],
-                formula: adjustedFormula,
-                value: adjustedFormula.startsWith('=')
-                  ? evaluateFormulaWithRefs(adjustedFormula, newCells)
-                  : adjustedFormula
-              };
+          console.log('Ctrl+R - Source cell', sourceCellRef, ':', sourceCell, 'Formula:', sourceCell?.formula, 'Value:', sourceCell?.value);
+
+          if (sourceCell && sourceCell.formula && sourceCell.formula.startsWith('=')) {
+            console.log('Filling formula right from', sourceCellRef, 'Formula:', sourceCell.formula);
+            // Fill to all cells to the right in this row
+            for (let c = minCol + 1; c <= maxCol; c++) {
+              const targetCellRef = getCellRef(c, r);
+              if (!newCells[targetCellRef]?.isLocked) {
+                const adjustedFormula = fillFormulaRight(
+                  sourceCell.formula,
+                  minCol,
+                  r,
+                  c
+                );
+                console.log('Adjusted formula for', targetCellRef, ':', adjustedFormula);
+
+                newCells[targetCellRef] = {
+                  ...newCells[targetCellRef],
+                  formula: adjustedFormula,
+                  value: adjustedFormula.startsWith('=')
+                    ? evaluateFormulaWithRefs(adjustedFormula, newCells)
+                    : adjustedFormula
+                };
+              }
+            }
+          } else if (sourceCell && sourceCell.value) {
+            // If no formula, just copy the value
+            for (let c = minCol + 1; c <= maxCol; c++) {
+              const targetCellRef = getCellRef(c, r);
+              if (!newCells[targetCellRef]?.isLocked) {
+                newCells[targetCellRef] = {
+                  ...newCells[targetCellRef],
+                  formula: '',
+                  value: sourceCell.value
+                };
+              }
             }
           }
+        }
 
-          setCells(newCells);
-          setScore(prev => prev + 50); // Bonus for using fill
+        setCells(newCells);
+        setScore(prev => prev + 50); // Bonus for using fill
+
+        // Update formula bar to show the current cell's formula after fill
+        if (selectedCell) {
+          const currentCellRef = getCellRef(selectedCell.col, selectedCell.row);
+          const currentCell = newCells[currentCellRef];
+          if (currentCell?.formula && currentCell.formula.startsWith('=')) {
+            setFormulaBarValue(currentCell.formula);
+          } else {
+            setFormulaBarValue(currentCell?.value || '');
+          }
         }
       } else if (selectedCell) {
         // If no range selected, fill from current cell to the right
@@ -5055,34 +5132,81 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       e.preventDefault();
 
       if (selectedRange) {
-        const sourceCellRef = getCellRef(selectedRange.start.col, selectedRange.start.row);
-        const sourceCell = cells[sourceCellRef];
+        // Fill down the selected range - Excel behavior: fill from topmost row to all cells below
+        let newCells = { ...cells };
 
-        if (sourceCell && sourceCell.formula) {
-          const newCells = { ...cells };
+        // First, ensure any pending edits are submitted to the newCells object
+        const inputElement = e.target as HTMLInputElement;
+        if (inputElement && inputElement.value && selectedCell) {
+          const currentCellRef = getCellRef(selectedCell.col, selectedCell.row);
+          const value = inputElement.value;
+          newCells[currentCellRef] = {
+            ...newCells[currentCellRef],
+            value: value.startsWith('=') ? evaluateFormulaWithRefs(value, newCells) : value,
+            formula: value.startsWith('=') ? value : ''
+          };
+        }
+        const minCol = Math.min(selectedRange.start.col, selectedRange.end.col);
+        const maxCol = Math.max(selectedRange.start.col, selectedRange.end.col);
+        const minRow = Math.min(selectedRange.start.row, selectedRange.end.row);
+        const maxRow = Math.max(selectedRange.start.row, selectedRange.end.row);
 
-          for (let r = selectedRange.start.row + 1; r <= selectedRange.end.row; r++) {
-            const targetCellRef = getCellRef(selectedRange.start.col, r);
-            if (!newCells[targetCellRef]?.isLocked) {
-              const adjustedFormula = fillFormulaDown(
-                sourceCell.formula,
-                selectedRange.start.col,
-                selectedRange.start.row,
-                r
-              );
+        // For each column in the range
+        for (let c = minCol; c <= maxCol; c++) {
+          // Get the source cell from the topmost row
+          const sourceCellRef = getCellRef(c, minRow);
+          const sourceCell = newCells[sourceCellRef];  // Use newCells which has the pending edit
 
-              newCells[targetCellRef] = {
-                ...newCells[targetCellRef],
-                formula: adjustedFormula,
-                value: adjustedFormula.startsWith('=')
-                  ? evaluateFormulaWithRefs(adjustedFormula, newCells)
-                  : adjustedFormula
-              };
+          if (sourceCell && sourceCell.formula && sourceCell.formula.startsWith('=')) {
+            console.log('Filling formula down from', sourceCellRef, 'Formula:', sourceCell.formula);
+            // Fill to all cells below in this column
+            for (let r = minRow + 1; r <= maxRow; r++) {
+              const targetCellRef = getCellRef(c, r);
+              if (!newCells[targetCellRef]?.isLocked) {
+                const adjustedFormula = fillFormulaDown(
+                  sourceCell.formula,
+                  c,
+                  minRow,
+                  r
+                );
+                console.log('Adjusted formula for', targetCellRef, ':', adjustedFormula);
+
+                newCells[targetCellRef] = {
+                  ...newCells[targetCellRef],
+                  formula: adjustedFormula,
+                  value: adjustedFormula.startsWith('=')
+                    ? evaluateFormulaWithRefs(adjustedFormula, newCells)
+                    : adjustedFormula
+                };
+              }
+            }
+          } else if (sourceCell && sourceCell.value) {
+            // If no formula, just copy the value
+            for (let r = minRow + 1; r <= maxRow; r++) {
+              const targetCellRef = getCellRef(c, r);
+              if (!newCells[targetCellRef]?.isLocked) {
+                newCells[targetCellRef] = {
+                  ...newCells[targetCellRef],
+                  formula: '',
+                  value: sourceCell.value
+                };
+              }
             }
           }
+        }
 
-          setCells(newCells);
-          setScore(prev => prev + 50);
+        setCells(newCells);
+        setScore(prev => prev + 50);
+
+        // Update formula bar to show the current cell's formula after fill
+        if (selectedCell) {
+          const currentCellRef = getCellRef(selectedCell.col, selectedCell.row);
+          const currentCell = newCells[currentCellRef];
+          if (currentCell?.formula && currentCell.formula.startsWith('=')) {
+            setFormulaBarValue(currentCell.formula);
+          } else {
+            setFormulaBarValue(currentCell?.value || '');
+          }
         }
       }
       return;
@@ -5128,16 +5252,15 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         });
       }
 
-      // Move the selected cell to the new end position
-      setSelectedCell({ col: newCol, row: newRow });
+      // Don't move the selected cell during range selection - keep focus on current cell
+      // This prevents blur events that could clear the formula
+      // setSelectedCell({ col: newCol, row: newRow });
 
       return;
     }
 
-    // Clear range selection on normal navigation
-    if (!e.shiftKey) {
-      setSelectedRange(null);
-    }
+    // Clear range selection only when actually navigating without shift
+    // (not when just releasing shift key)
 
     switch (e.key) {
       case 'Enter':
@@ -5254,50 +5377,99 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         break;
         
       case 'ArrowUp':
-        e.preventDefault();
-        if (row > 0) {
-          // Check if we're currently editing a formula
-          const currentCellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
-          const currentCell = cells[currentCellRef];
+        console.log('ArrowUp pressed - editingCell:', editingCell, 'isEditingFormula:', isEditingFormula, 'row:', row, 'col:', col, 'selectedCell:', selectedCell);
 
-          if (editingCell && editingCell.col === col && editingCell.row === row &&
-              currentCell?.formula?.startsWith('=')) {
-            // We're editing a formula
-            const newRow = row - 1;
-            const targetCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
+        // If we're in formula editing mode, handle formula building
+        if (editingCell && isEditingFormula) {
+          e.preventDefault();
+          e.stopPropagation();
 
-            const currentFormula = currentCell.formula || '=';
+          // Use selectedCell position if available, otherwise use the current position
+          const currentCol = selectedCell?.col ?? col;
+          const currentRow = selectedCell?.row ?? row;
 
-            // Check if the formula is just "=" or "=<cellref>" (no operators)
-            // If so, replace the cell reference instead of appending
-            const simpleFormulaPattern = /^=([A-Za-z]+\d+)?$/;
-            const isSimpleFormula = simpleFormulaPattern.test(currentFormula);
+          if (currentRow > 0) {
+            // Get the cell that's actually being edited
+            const editingCellRef = `${String.fromCharCode(65 + editingCell.col)}${editingCell.row + 1}`;
+            const editingInput = document.querySelector(`[data-cell="${editingCellRef}"] input`) as HTMLInputElement;
+            const currentFormula = editingInput?.value || '';
 
-            let newFormula;
-            if (isSimpleFormula) {
-              // Replace the entire formula with just the new cell reference
-              newFormula = '=' + targetCellRef;
-            } else {
-              // Complex formula - check if we should append
-              const lastChar = currentFormula[currentFormula.length - 1];
-              newFormula = currentFormula;
-              if (lastChar && lastChar.match(/[A-Z0-9]/i)) {
-                newFormula += '+';  // Default to addition
+            console.log('ArrowUp IN FORMULA MODE - editing cell:', editingCellRef, 'formula:', currentFormula, 'moving from:', currentCol, currentRow);
+
+            if (currentFormula.startsWith('=')) {
+              // Calculate the target cell reference based on current position
+              const newRow = currentRow - 1;
+              const targetCellRef = `${String.fromCharCode(65 + currentCol)}${newRow + 1}`;
+
+              // Check if the formula is just "=" or "=<cellref>" (no operators)
+              const simpleFormulaPattern = /^=([A-Za-z]+\d+)?$/;
+              const isSimpleFormula = simpleFormulaPattern.test(currentFormula);
+
+              let newFormula: string;
+              if (isSimpleFormula) {
+                // Replace the entire formula with just the new cell reference
+                newFormula = '=' + targetCellRef;
+              } else {
+                // Complex formula - check what to append
+                const operators = ['+', '-', '*', '/', '^', '(', ','];
+                const lastChar = currentFormula[currentFormula.length - 1];
+
+                // Check if formula ends with an operator
+                const endsWithOperator = operators.includes(lastChar);
+
+                if (endsWithOperator) {
+                  // If it ends with an operator, just append the cell reference
+                  newFormula = currentFormula + targetCellRef;
+                } else {
+                  // If it doesn't end with operator, it's probably a cell ref
+                  // Replace the last cell reference with the new one (like Excel does)
+                  // This allows continuous navigation without building long formulas
+                  const cellRefPattern = /[A-Z]+\d+$/i;
+                  if (cellRefPattern.test(currentFormula)) {
+                    // Replace the last cell reference
+                    newFormula = currentFormula.replace(cellRefPattern, targetCellRef);
+                  } else {
+                    // Fallback - just use the new reference
+                    newFormula = '=' + targetCellRef;
+                  }
+                }
               }
-              newFormula += targetCellRef;
+
+              // Update the editing cell with the new formula
+              handleCellChange(editingCell.col, editingCell.row, newFormula);
+
+              // Highlight the referenced cell
+              setReferencedCells(prev => {
+                const newSet = new Set(prev);
+                newSet.add(targetCellRef);
+                return newSet;
+              });
+
+              // Move the selected cell indicator to the new position
+              setSelectedCell({ col: currentCol, row: newRow });
+
+              // Keep the editing state on the original cell
+              setEditingCell(editingCell);
+              setIsEditingFormula(true);
+
+              // Refocus the editing input
+              setTimeout(() => {
+                if (editingInput) {
+                  editingInput.focus();
+                  editingInput.setSelectionRange(newFormula.length, newFormula.length);
+                }
+              }, 10);
             }
-
-            // Update the current cell with the reference
-            handleCellChange(col, row, newFormula);
-
-            // Highlight the referenced cell
-            setReferencedCells(prev => {
-              const newSet = new Set(prev);
-              newSet.add(targetCellRef);
-              return newSet;
-            });
-          } else {
-            // Normal navigation
+          }
+          return; // Don't continue to normal navigation
+        } else {
+          // Normal navigation - only if not editing formula
+          e.preventDefault();
+          // Clear range selection when navigating without shift
+          if (!e.shiftKey) {
+            setSelectedRange(null);
+          }
+          if (row > 0) {
             const newRow = row - 1;
             setSelectedCell({ col, row: newRow });
             const newCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
@@ -5311,58 +5483,109 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           }
         }
         break;
-        
+
       case 'ArrowDown':
-        e.preventDefault();
-        if (row < maxRows - 1) {
-          // Check if we're currently editing a formula
-          const currentCellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
-          const currentCell = cells[currentCellRef];
+        // If we're in formula editing mode, handle formula building
+        if (editingCell && isEditingFormula) {
+          e.preventDefault();
+          e.stopPropagation();
 
-          if (editingCell && editingCell.col === col && editingCell.row === row &&
-              currentCell?.formula?.startsWith('=')) {
-            // We're editing a formula
-            const newRow = row + 1;
-            const targetCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
+          // Use selectedCell position if available, otherwise use the current position
+          const currentCol = selectedCell?.col ?? col;
+          const currentRow = selectedCell?.row ?? row;
 
-            const currentFormula = currentCell.formula || '=';
+          if (currentRow < maxRows - 1) {
+            // Get the cell that's actually being edited
+            const editingCellRef = `${String.fromCharCode(65 + editingCell.col)}${editingCell.row + 1}`;
+            const editingInput = document.querySelector(`[data-cell="${editingCellRef}"] input`) as HTMLInputElement;
+            const currentFormula = editingInput?.value || '';
 
-            // Check if the formula is just "=" or "=<cellref>" (no operators)
-            const simpleFormulaPattern = /^=([A-Za-z]+\d+)?$/;
-            const isSimpleFormula = simpleFormulaPattern.test(currentFormula);
+            console.log('ArrowDown - editing cell:', editingCellRef, 'formula:', currentFormula, 'moving from:', currentCol, currentRow);
 
-            let newFormula;
-            if (isSimpleFormula) {
-              // Replace the entire formula with just the new cell reference
-              newFormula = '=' + targetCellRef;
-            } else {
-              // Complex formula - check if we should append
-              const lastChar = currentFormula[currentFormula.length - 1];
-              newFormula = currentFormula;
-              if (lastChar && lastChar.match(/[A-Z0-9]/i)) {
-                newFormula += '+';  // Default to addition
+            if (currentFormula.startsWith('=')) {
+              // Calculate the target cell reference based on current position
+              const newRow = currentRow + 1;
+              const targetCellRef = `${String.fromCharCode(65 + currentCol)}${newRow + 1}`;
+
+              // Check if the formula is just "=" or "=<cellref>" (no operators)
+              const simpleFormulaPattern = /^=([A-Za-z]+\d+)?$/;
+              const isSimpleFormula = simpleFormulaPattern.test(currentFormula);
+
+              let newFormula: string;
+              if (isSimpleFormula) {
+                // Replace the entire formula with just the new cell reference
+                newFormula = '=' + targetCellRef;
+              } else {
+                // Complex formula - check what to append
+                const operators = ['+', '-', '*', '/', '^', '(', ','];
+                const lastChar = currentFormula[currentFormula.length - 1];
+
+                // Check if formula ends with an operator
+                const endsWithOperator = operators.includes(lastChar);
+
+                if (endsWithOperator) {
+                  // If it ends with an operator, just append the cell reference
+                  newFormula = currentFormula + targetCellRef;
+                } else {
+                  // If it doesn't end with operator, it's probably a cell ref
+                  // Replace the last cell reference with the new one (like Excel does)
+                  // This allows continuous navigation without building long formulas
+                  const cellRefPattern = /[A-Z]+\d+$/i;
+                  if (cellRefPattern.test(currentFormula)) {
+                    // Replace the last cell reference
+                    newFormula = currentFormula.replace(cellRefPattern, targetCellRef);
+                  } else {
+                    // Fallback - just use the new reference
+                    newFormula = '=' + targetCellRef;
+                  }
+                }
               }
-              newFormula += targetCellRef;
+
+              // Update the editing cell with the new formula
+              handleCellChange(editingCell.col, editingCell.row, newFormula);
+
+              // Highlight the referenced cell
+              setReferencedCells(prev => {
+                const newSet = new Set(prev);
+                newSet.add(targetCellRef);
+                return newSet;
+              });
+
+              // Move the selected cell indicator to the new position
+              setSelectedCell({ col: currentCol, row: newRow });
+
+              // Keep the editing state on the original cell
+              setEditingCell(editingCell);
+              setIsEditingFormula(true);
+
+              // Refocus the editing input
+              setTimeout(() => {
+                if (editingInput) {
+                  editingInput.focus();
+                  editingInput.setSelectionRange(newFormula.length, newFormula.length);
+                }
+              }, 10);
             }
-
-            // Update the current cell with the reference
-            handleCellChange(col, row, newFormula);
-
-            // Highlight the referenced cell
-            setReferencedCells(prev => {
-              const newSet = new Set(prev);
-              newSet.add(targetCellRef);
-              return newSet;
-            });
-          } else {
-            // Normal navigation
+          }
+          return; // Don't continue to normal navigation
+        } else {
+          // Normal navigation
+          e.preventDefault();
+          // Clear range selection when navigating without shift
+          if (!e.shiftKey) {
+            setSelectedRange(null);
+          }
+          if (row < maxRows - 1) {
             const newRow = row + 1;
             setSelectedCell({ col, row: newRow });
             const newCellRef = `${String.fromCharCode(65 + col)}${newRow + 1}`;
             const newCell = cells[newCellRef];
+            console.log('ArrowDown navigation to:', newCellRef, 'Cell:', newCell, 'Formula:', newCell?.formula, 'Value:', newCell?.value);
             if (newCell?.formula && newCell.formula.startsWith('=')) {
+              console.log('Setting formula bar to formula:', newCell.formula);
               setFormulaBarValue(newCell.formula);
             } else {
+              console.log('Setting formula bar to value:', newCell?.value || '');
               setFormulaBarValue(newCell?.value || '');
             }
             focusCellInput(col, newRow);
@@ -5371,49 +5594,97 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         break;
 
       case 'ArrowLeft':
-        e.preventDefault();
-        if (col > 0) {
-          // Check if we're currently editing a formula
-          const currentCellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
-          const currentCell = cells[currentCellRef];
+        // If we're in formula editing mode, handle formula building
+        if (editingCell && isEditingFormula) {
+          e.preventDefault();
+          e.stopPropagation();
 
-          if (editingCell && editingCell.col === col && editingCell.row === row &&
-              currentCell?.formula?.startsWith('=')) {
-            // We're editing a formula
-            const newCol = col - 1;
-            const targetCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
+          // Use selectedCell position if available, otherwise use the current position
+          const currentCol = selectedCell?.col ?? col;
+          const currentRow = selectedCell?.row ?? row;
 
-            const currentFormula = currentCell.formula || '=';
+          if (currentCol > 0) {
+            // Get the cell that's actually being edited
+            const editingCellRef = `${String.fromCharCode(65 + editingCell.col)}${editingCell.row + 1}`;
+            const editingInput = document.querySelector(`[data-cell="${editingCellRef}"] input`) as HTMLInputElement;
+            const currentFormula = editingInput?.value || '';
 
-            // Check if the formula is just "=" or "=<cellref>" (no operators)
-            const simpleFormulaPattern = /^=([A-Za-z]+\d+)?$/;
-            const isSimpleFormula = simpleFormulaPattern.test(currentFormula);
+            console.log('ArrowLeft - editing cell:', editingCellRef, 'formula:', currentFormula, 'moving from:', currentCol, currentRow);
 
-            let newFormula;
-            if (isSimpleFormula) {
-              // Replace the entire formula with just the new cell reference
-              newFormula = '=' + targetCellRef;
-            } else {
-              // Complex formula - check if we should append
-              const lastChar = currentFormula[currentFormula.length - 1];
-              newFormula = currentFormula;
-              if (lastChar && lastChar.match(/[A-Z0-9]/i)) {
-                newFormula += '+';  // Default to addition
+            if (currentFormula.startsWith('=')) {
+              // Calculate the target cell reference based on current position
+              const newCol = currentCol - 1;
+              const targetCellRef = `${String.fromCharCode(65 + newCol)}${currentRow + 1}`;
+
+              // Check if the formula is just "=" or "=<cellref>" (no operators)
+              const simpleFormulaPattern = /^=([A-Za-z]+\d+)?$/;
+              const isSimpleFormula = simpleFormulaPattern.test(currentFormula);
+
+              let newFormula: string;
+              if (isSimpleFormula) {
+                // Replace the entire formula with just the new cell reference
+                newFormula = '=' + targetCellRef;
+              } else {
+                // Complex formula - check what to append
+                const operators = ['+', '-', '*', '/', '^', '(', ','];
+                const lastChar = currentFormula[currentFormula.length - 1];
+
+                // Check if formula ends with an operator
+                const endsWithOperator = operators.includes(lastChar);
+
+                if (endsWithOperator) {
+                  // If it ends with an operator, just append the cell reference
+                  newFormula = currentFormula + targetCellRef;
+                } else {
+                  // If it doesn't end with operator, it's probably a cell ref
+                  // Replace the last cell reference with the new one (like Excel does)
+                  // This allows continuous navigation without building long formulas
+                  const cellRefPattern = /[A-Z]+\d+$/i;
+                  if (cellRefPattern.test(currentFormula)) {
+                    // Replace the last cell reference
+                    newFormula = currentFormula.replace(cellRefPattern, targetCellRef);
+                  } else {
+                    // Fallback - just use the new reference
+                    newFormula = '=' + targetCellRef;
+                  }
+                }
               }
-              newFormula += targetCellRef;
+
+              // Update the editing cell with the new formula
+              handleCellChange(editingCell.col, editingCell.row, newFormula);
+
+              // Highlight the referenced cell
+              setReferencedCells(prev => {
+                const newSet = new Set(prev);
+                newSet.add(targetCellRef);
+                return newSet;
+              });
+
+              // Move the selected cell indicator to the new position
+              setSelectedCell({ col: newCol, row: currentRow });
+
+              // Keep the editing state on the original cell
+              setEditingCell(editingCell);
+              setIsEditingFormula(true);
+
+              // Refocus the editing input
+              setTimeout(() => {
+                if (editingInput) {
+                  editingInput.focus();
+                  editingInput.setSelectionRange(newFormula.length, newFormula.length);
+                }
+              }, 10);
             }
-
-            // Update the current cell with the reference
-            handleCellChange(col, row, newFormula);
-
-            // Highlight the referenced cell
-            setReferencedCells(prev => {
-              const newSet = new Set(prev);
-              newSet.add(targetCellRef);
-              return newSet;
-            });
-          } else {
-            // Normal navigation
+          }
+          return; // Don't continue to normal navigation
+        } else {
+          // Normal navigation
+          e.preventDefault();
+          // Clear range selection when navigating without shift
+          if (!e.shiftKey) {
+            setSelectedRange(null);
+          }
+          if (col > 0) {
             const newCol = col - 1;
             setSelectedCell({ col: newCol, row });
             const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
@@ -5429,49 +5700,97 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         break;
 
       case 'ArrowRight':
-        e.preventDefault();
-        if (col < maxCols - 1) {
-          // Check if we're currently editing a formula
-          const currentCellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
-          const currentCell = cells[currentCellRef];
+        // If we're in formula editing mode, handle formula building
+        if (editingCell && isEditingFormula) {
+          e.preventDefault();
+          e.stopPropagation();
 
-          if (editingCell && editingCell.col === col && editingCell.row === row &&
-              currentCell?.formula?.startsWith('=')) {
-            // We're editing a formula
-            const newCol = col + 1;
-            const targetCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
+          // Use selectedCell position if available, otherwise use the current position
+          const currentCol = selectedCell?.col ?? col;
+          const currentRow = selectedCell?.row ?? row;
 
-            const currentFormula = currentCell.formula || '=';
+          if (currentCol < maxCols - 1) {
+            // Get the cell that's actually being edited
+            const editingCellRef = `${String.fromCharCode(65 + editingCell.col)}${editingCell.row + 1}`;
+            const editingInput = document.querySelector(`[data-cell="${editingCellRef}"] input`) as HTMLInputElement;
+            const currentFormula = editingInput?.value || '';
 
-            // Check if the formula is just "=" or "=<cellref>" (no operators)
-            const simpleFormulaPattern = /^=([A-Za-z]+\d+)?$/;
-            const isSimpleFormula = simpleFormulaPattern.test(currentFormula);
+            console.log('ArrowRight - editing cell:', editingCellRef, 'formula:', currentFormula, 'moving from:', currentCol, currentRow);
 
-            let newFormula;
-            if (isSimpleFormula) {
-              // Replace the entire formula with just the new cell reference
-              newFormula = '=' + targetCellRef;
-            } else {
-              // Complex formula - check if we should append
-              const lastChar = currentFormula[currentFormula.length - 1];
-              newFormula = currentFormula;
-              if (lastChar && lastChar.match(/[A-Z0-9]/i)) {
-                newFormula += '+';  // Default to addition
+            if (currentFormula.startsWith('=')) {
+              // Calculate the target cell reference based on current position
+              const newCol = currentCol + 1;
+              const targetCellRef = `${String.fromCharCode(65 + newCol)}${currentRow + 1}`;
+
+              // Check if the formula is just "=" or "=<cellref>" (no operators)
+              const simpleFormulaPattern = /^=([A-Za-z]+\d+)?$/;
+              const isSimpleFormula = simpleFormulaPattern.test(currentFormula);
+
+              let newFormula: string;
+              if (isSimpleFormula) {
+                // Replace the entire formula with just the new cell reference
+                newFormula = '=' + targetCellRef;
+              } else {
+                // Complex formula - check what to append
+                const operators = ['+', '-', '*', '/', '^', '(', ','];
+                const lastChar = currentFormula[currentFormula.length - 1];
+
+                // Check if formula ends with an operator
+                const endsWithOperator = operators.includes(lastChar);
+
+                if (endsWithOperator) {
+                  // If it ends with an operator, just append the cell reference
+                  newFormula = currentFormula + targetCellRef;
+                } else {
+                  // If it doesn't end with operator, it's probably a cell ref
+                  // Replace the last cell reference with the new one (like Excel does)
+                  // This allows continuous navigation without building long formulas
+                  const cellRefPattern = /[A-Z]+\d+$/i;
+                  if (cellRefPattern.test(currentFormula)) {
+                    // Replace the last cell reference
+                    newFormula = currentFormula.replace(cellRefPattern, targetCellRef);
+                  } else {
+                    // Fallback - just use the new reference
+                    newFormula = '=' + targetCellRef;
+                  }
+                }
               }
-              newFormula += targetCellRef;
+
+              // Update the editing cell with the new formula
+              handleCellChange(editingCell.col, editingCell.row, newFormula);
+
+              // Highlight the referenced cell
+              setReferencedCells(prev => {
+                const newSet = new Set(prev);
+                newSet.add(targetCellRef);
+                return newSet;
+              });
+
+              // Move the selected cell indicator to the new position
+              setSelectedCell({ col: newCol, row: currentRow });
+
+              // Keep the editing state on the original cell
+              setEditingCell(editingCell);
+              setIsEditingFormula(true);
+
+              // Refocus the editing input
+              setTimeout(() => {
+                if (editingInput) {
+                  editingInput.focus();
+                  editingInput.setSelectionRange(newFormula.length, newFormula.length);
+                }
+              }, 10);
             }
-
-            // Update the current cell with the reference
-            handleCellChange(col, row, newFormula);
-
-            // Highlight the referenced cell
-            setReferencedCells(prev => {
-              const newSet = new Set(prev);
-              newSet.add(targetCellRef);
-              return newSet;
-            });
-          } else {
-            // Normal navigation
+          }
+          return; // Don't continue to normal navigation
+        } else {
+          // Normal navigation
+          e.preventDefault();
+          // Clear range selection when navigating without shift
+          if (!e.shiftKey) {
+            setSelectedRange(null);
+          }
+          if (col < maxCols - 1) {
             const newCol = col + 1;
             setSelectedCell({ col: newCol, row });
             const newCellRef = `${String.fromCharCode(65 + newCol)}${row + 1}`;
@@ -5488,13 +5807,29 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         
       case 'Escape':
         e.preventDefault();
-        // Cancel editing, restore original value
-        const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
-        const cell = cells[cellRef];
-        if (cell?.formula && cell.formula.startsWith('=')) {
-          setFormulaBarValue(cell.formula);
-        } else {
-          setFormulaBarValue(cell?.value || '');
+        // Cancel editing like Excel - restore original value and exit edit mode
+        if (editingCell) {
+          const editingCellRef = `${String.fromCharCode(65 + editingCell.col)}${editingCell.row + 1}`;
+          const editingCellData = cells[editingCellRef];
+
+          // Restore the original value in the input
+          const input = document.querySelector(`[data-cell="${editingCellRef}"] input`) as HTMLInputElement;
+          if (input) {
+            input.value = editingCellData?.value || '';
+            input.blur(); // Remove focus from the input
+          }
+
+          // Clear editing states
+          setEditingCell(null);
+          setIsEditingFormula(false);
+          setReferencedCells(new Set());
+
+          // Restore formula bar value
+          if (editingCellData?.formula && editingCellData.formula.startsWith('=')) {
+            setFormulaBarValue(editingCellData.formula);
+          } else {
+            setFormulaBarValue(editingCellData?.value || '');
+          }
         }
         break;
         
@@ -5518,7 +5853,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
       // Store the formula but don't evaluate yet
       newCells[cellRef] = {
         ...newCells[cellRef],
-        formula: value,
+        formula: value.startsWith('=') ? value : '', // Only store as formula if it starts with '='
         value: value.startsWith('=') ? '' : value // Clear display value for formulas until evaluated
       };
       setCells(newCells);
@@ -5576,6 +5911,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
 
   const handleCellSubmit = (col: number, row: number, value: string) => {
     const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+    console.log('handleCellSubmit called for', cellRef, 'with value:', value);
 
     // Clear referenced cells highlighting when submitting
     setReferencedCells(new Set());
@@ -5808,13 +6144,16 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         ) : (
           <>
             <CellInput
-              value={selectedCell?.col === col && selectedCell?.row === row && cell?.formula?.startsWith('=')
-                ? cell.formula
-                : (cell?.value || '')}
+              value={(editingCell?.col === col && editingCell?.row === row)
+                ? (cell?.formula?.startsWith('=') ? cell.formula : (cell?.value || ''))
+                : (cell?.formula?.startsWith('=') ? cell?.value : (cell?.value || ''))}
               onChange={(e) => {
                 handleCellChange(col, row, e.target.value);
+                // Mark that the user actually changed the value
+                (e.currentTarget as any).hasChanged = true;
                 // Track if we're editing a formula
                 if (e.target.value.startsWith('=')) {
+                  console.log('Setting formula edit mode - col:', col, 'row:', row);
                   setIsEditingFormula(true);
                   setEditingCell({ col, row });
                   setFormulaBarCursorPos(e.target.selectionStart || 0);
@@ -5823,31 +6162,79 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
                   setEditingCell(null);
                 }
               }}
-              onFocus={() => {
+              onFocus={(e) => {
                 handleCellClick(col, row, true);
                 setEditingCell({ col, row });
                 // Check if this cell has a formula
                 if (cell?.formula?.startsWith('=')) {
                   setIsEditingFormula(true);
                 }
+                // Reset the change flag when focusing
+                (e.currentTarget as any).hasChanged = false;
               }}
               onKeyDown={(e) => {
+                // Handle Delete/Backspace
+                if (e.key === 'Delete' || e.key === 'Backspace') {
+                  // If there's a selected range, let it bubble up to clear the range
+                  if (selectedRange) {
+                    // Let handleKeyDown handle range deletion
+                    handleKeyDown(e, col, row);
+                    return;
+                  }
+                  // Otherwise, stop propagation to allow normal character deletion in input
+                  e.stopPropagation();
+                  return; // Let the default input behavior handle character deletion
+                }
+
                 if (e.key === 'Enter' || e.key === 'Tab') {
                   handleCellSubmit(col, row, e.currentTarget.value);
                   setIsEditingFormula(false);
                   setEditingCell(null);
+                  // Mark that we've already submitted to prevent double submission on blur
+                  (e.currentTarget as any).submitted = true;
                 }
+
+                // Pass through to handleKeyDown for other keys (including Shift+Arrow for range selection)
+                // but prevent default text selection behavior when using Shift+Arrow
+                if (e.shiftKey && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                  e.preventDefault();
+                }
+
                 handleKeyDown(e, col, row);
               }}
               onBlur={(e) => {
                 // Delay blur to allow click event to fire first
                 setTimeout(() => {
+                  // Check if already submitted via Enter/Tab
+                  if ((e.target as any).submitted) {
+                    (e.target as any).submitted = false; // Reset the flag
+                    return;
+                  }
+
+                  // Check if the user actually changed the value
+                  if (!(e.target as any).hasChanged) {
+                    console.log('Skipping blur submit - value not changed');
+                    setIsEditingFormula(false);
+                    setEditingCell(null);
+                    setReferencedCells(new Set());
+                    return;
+                  }
+
+                  // Check if we're still supposed to be editing this cell (for arrow key navigation in formulas)
+                  const currentInput = document.querySelector(`[data-cell="${cellRef}"] input`) as HTMLInputElement;
+                  if (currentInput && document.activeElement === currentInput) {
+                    // Input was refocused, don't clear editing state
+                    return;
+                  }
+
                   // Only submit if we're not clicking on another cell for formula reference
                   if (!isEditingFormula || e.relatedTarget?.tagName !== 'TD') {
                     handleCellSubmit(col, row, e.target.value);
                     setIsEditingFormula(false);
                     setEditingCell(null);
                     setReferencedCells(new Set());
+                    // Reset the change flag
+                    (e.target as any).hasChanged = false;
                   }
                 }, 100);
               }}
@@ -6162,6 +6549,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
                 ref={formulaBarRef}
                 value={formulaBarValue}
                 onChange={(e) => {
+                  console.log('Formula bar onChange:', e.target.value);
                   const value = e.target.value;
                   setFormulaBarValue(value);
                   setIsEditingFormula(value.startsWith('='));
