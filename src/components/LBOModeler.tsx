@@ -11,6 +11,12 @@ import {
   getCellRef
 } from '../utils/cellReferenceParser';
 
+declare global {
+  interface Window {
+    lastCellCount?: number;
+  }
+}
+
 const fadeIn = keyframes`
   from {
     opacity: 0;
@@ -676,31 +682,87 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
     if (Object.keys(cells).length > 0) {
       const saveTimer = setTimeout(() => {
         saveStateToLocalStorage();
-      }, 1000); // Debounce saves to avoid too frequent writes
+      }, 500); // Reduced debounce for quicker saves
 
       return () => clearTimeout(saveTimer);
     }
   }, [cells, completedCells, score, saveStateToLocalStorage]);
 
+  // Save immediately before page unload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Save immediately when page is about to unload
+      saveStateToLocalStorage();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [saveStateToLocalStorage]);
+
   // Debug: Monitor cells state changes
   useEffect(() => {
-    console.log('Cells state updated. Checking for formulas...');
+    console.log('Cells state updated. Total cells:', Object.keys(cells).length);
+    // Log cells that have values or formulas
+    const nonEmptyCells = Object.entries(cells).filter(([_, cell]) => cell.value || cell.formula);
+    console.log('Non-empty cells:', nonEmptyCells.length);
+
     // Log specific cells that have formulas
     Object.keys(cells).forEach(key => {
       if (cells[key].formula) {
-        console.log(`Cell ${key}:`, {
+        console.log(`Cell ${key} has formula:`, {
           formula: cells[key].formula,
           value: cells[key].value,
           isFormula: cells[key].formula.startsWith('=')
         });
       }
     });
+
+    // Check if any cells were unexpectedly cleared
+    const currentCellCount = Object.keys(cells).filter(key => cells[key].value || cells[key].formula).length;
+    if (window.lastCellCount && currentCellCount < window.lastCellCount) {
+      console.warn('WARNING: Cells were deleted!', 'Previous count:', window.lastCellCount, 'Current count:', currentCellCount);
+    }
+    window.lastCellCount = currentCellCount;
   }, [cells]);
 
   // Debug: Monitor formula bar value changes
   useEffect(() => {
     console.log('Formula bar value changed to:', formulaBarValue, 'Selected cell:', selectedCell ? `${String.fromCharCode(65 + selectedCell.col)}${selectedCell.row + 1}` : 'none');
   }, [formulaBarValue, selectedCell]);
+
+  // Function to recalculate all dependent formulas
+  const recalculateFormulas = useCallback((updatedCells: Record<string, Cell>) => {
+    const recalculatedCells = { ...updatedCells };
+    let hasChanges = false;
+
+    // Keep recalculating until no more changes (to handle chained dependencies)
+    let iterations = 0;
+    const maxIterations = 10; // Prevent infinite loops
+
+    do {
+      hasChanges = false;
+      iterations++;
+
+      Object.keys(recalculatedCells).forEach(cellRef => {
+        const cell = recalculatedCells[cellRef];
+        if (cell.formula && cell.formula.startsWith('=')) {
+          const newValue = evaluateFormulaWithRefs(cell.formula, recalculatedCells, cellRef);
+          if (newValue !== cell.value) {
+            recalculatedCells[cellRef] = {
+              ...cell,
+              value: newValue
+            };
+            hasChanges = true;
+            console.log('Recalculating', cellRef, 'from', cell.value, 'to', newValue);
+          }
+        }
+      });
+    } while (hasChanges && iterations < maxIterations);
+
+    return recalculatedCells;
+  }, []);
 
   // Handle space bar for assumptions overlay and shortcuts modal
   useEffect(() => {
@@ -4836,7 +4898,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           }, 0);
         }
       }
-    } else if (!isFromCellInput) {
+    } else {
       // Normal cell selection (not editing a formula)
       setSelectedCell({ col, row });
       const cell = cells[clickedCellRef];
@@ -4850,7 +4912,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         value: cell?.value,
         hasFormula: cell?.formula?.startsWith('='),
         formulaType: typeof cell?.formula,
-        formulaLength: cell?.formula?.length
+        isFromCellInput
       });
 
       // Always show formula in formula bar if it exists, otherwise show value
@@ -4872,7 +4934,10 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         setFormulaBarValue(cell?.value || '');
       }
       setIsEditingFormula(false);
-      setEditingCell(null);
+      // Don't clear editingCell here if it's from a cell input focus
+      if (!isFromCellInput) {
+        setEditingCell(null);
+      }
     }
   };
 
@@ -5024,16 +5089,23 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         // Fill across the selected range - Excel behavior: fill from leftmost column to all cells to the right
         let newCells = { ...cells };
 
-        // First, ensure any pending edits are submitted to the newCells object
+        // Only save pending edits if we're actually in edit mode
         const inputElement = e.target as HTMLInputElement;
-        if (inputElement && inputElement.value && selectedCell) {
+        if (editingCell && inputElement && inputElement.value && selectedCell) {
           const currentCellRef = getCellRef(selectedCell.col, selectedCell.row);
           const value = inputElement.value;
-          newCells[currentCellRef] = {
-            ...newCells[currentCellRef],
-            value: value.startsWith('=') ? evaluateFormulaWithRefs(value, newCells) : value,
-            formula: value.startsWith('=') ? value : ''
-          };
+          console.log('Ctrl+R - Saving pending edit:', currentCellRef, 'Value:', value);
+          // Only save if it's actually a new value being typed (not the displayed calculated value)
+          const currentCell = cells[currentCellRef];
+          const isEditingFormula = currentCell?.formula?.startsWith('=') && editingCell.col === selectedCell.col && editingCell.row === selectedCell.row;
+          if (!isEditingFormula || value.startsWith('=')) {
+            newCells[currentCellRef] = {
+              ...newCells[currentCellRef],
+              value: value.startsWith('=') ? evaluateFormulaWithRefs(value, newCells) : value,
+              formula: value.startsWith('=') ? value : ''
+            };
+            console.log('After save, cell has:', newCells[currentCellRef]);
+          }
         }
         const minCol = Math.min(selectedRange.start.col, selectedRange.end.col);
         const maxCol = Math.max(selectedRange.start.col, selectedRange.end.col);
@@ -5042,21 +5114,54 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
 
         // For each row in the range
         for (let r = minRow; r <= maxRow; r++) {
-          // Get the source cell from the leftmost column
-          const sourceCellRef = getCellRef(minCol, r);
-          const sourceCell = newCells[sourceCellRef];  // Use newCells which has the pending edit
+          // Determine the source cell - use the first cell in the row that has a formula, or the leftmost cell
+          let sourceCellRef = getCellRef(minCol, r);
+          let sourceCell = newCells[sourceCellRef];
+
+          // Check if there's a cell with a formula in this row (prefer the selected cell if it has a formula)
+          if (selectedCell && selectedCell.row === r) {
+            const selectedCellRef = getCellRef(selectedCell.col, selectedCell.row);
+            const selectedCellData = newCells[selectedCellRef];
+            if (selectedCellData?.formula?.startsWith('=')) {
+              sourceCellRef = selectedCellRef;
+              sourceCell = selectedCellData;
+              console.log('Using selected cell with formula as source:', sourceCellRef);
+            }
+          }
+
+          // If still no formula found, look for any cell with a formula in this row
+          if (!sourceCell?.formula?.startsWith('=')) {
+            for (let c = minCol; c <= maxCol; c++) {
+              const cellRef = getCellRef(c, r);
+              const cell = newCells[cellRef];
+              if (cell?.formula?.startsWith('=')) {
+                sourceCellRef = cellRef;
+                sourceCell = cell;
+                console.log('Found cell with formula as source:', sourceCellRef);
+                break;
+              }
+            }
+          }
 
           console.log('Ctrl+R - Source cell', sourceCellRef, ':', sourceCell, 'Formula:', sourceCell?.formula, 'Value:', sourceCell?.value);
 
           if (sourceCell && sourceCell.formula && sourceCell.formula.startsWith('=')) {
             console.log('Filling formula right from', sourceCellRef, 'Formula:', sourceCell.formula);
-            // Fill to all cells to the right in this row
-            for (let c = minCol + 1; c <= maxCol; c++) {
+            // Get source column for proper formula adjustment
+            const sourceCol = sourceCellRef.charCodeAt(0) - 65;
+
+            // Fill to all cells in this row
+            for (let c = minCol; c <= maxCol; c++) {
+              // Skip the source cell itself
+              const sourceRow = parseInt(sourceCellRef.substring(1)) - 1;
+              if (c === sourceCol && r === sourceRow) {
+                continue;
+              }
               const targetCellRef = getCellRef(c, r);
               if (!newCells[targetCellRef]?.isLocked) {
                 const adjustedFormula = fillFormulaRight(
                   sourceCell.formula,
-                  minCol,
+                  sourceCol,
                   r,
                   c
                 );
@@ -5135,16 +5240,21 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         // Fill down the selected range - Excel behavior: fill from topmost row to all cells below
         let newCells = { ...cells };
 
-        // First, ensure any pending edits are submitted to the newCells object
+        // Only save pending edits if we're actually in edit mode
         const inputElement = e.target as HTMLInputElement;
-        if (inputElement && inputElement.value && selectedCell) {
+        if (editingCell && inputElement && inputElement.value && selectedCell) {
           const currentCellRef = getCellRef(selectedCell.col, selectedCell.row);
           const value = inputElement.value;
-          newCells[currentCellRef] = {
-            ...newCells[currentCellRef],
-            value: value.startsWith('=') ? evaluateFormulaWithRefs(value, newCells) : value,
-            formula: value.startsWith('=') ? value : ''
-          };
+          // Only save if it's actually a new value being typed (not the displayed calculated value)
+          const currentCell = cells[currentCellRef];
+          const isEditingFormula = currentCell?.formula?.startsWith('=') && editingCell.col === selectedCell.col && editingCell.row === selectedCell.row;
+          if (!isEditingFormula || value.startsWith('=')) {
+            newCells[currentCellRef] = {
+              ...newCells[currentCellRef],
+              value: value.startsWith('=') ? evaluateFormulaWithRefs(value, newCells) : value,
+              formula: value.startsWith('=') ? value : ''
+            };
+          }
         }
         const minCol = Math.min(selectedRange.start.col, selectedRange.end.col);
         const maxCol = Math.max(selectedRange.start.col, selectedRange.end.col);
@@ -5835,11 +5945,16 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         
       case 'F2':
         e.preventDefault();
-        // Focus on formula bar for editing
-        const formulaInput = document.querySelector('input[type="text"]') as HTMLInputElement;
-        if (formulaInput) {
-          formulaInput.focus();
-          formulaInput.select();
+        // Enter edit mode for the current cell
+        if (selectedCell) {
+          setEditingCell(selectedCell);
+          // Focus on the cell input and select its content
+          const cellRef = getCellRef(selectedCell.col, selectedCell.row);
+          const cellInput = document.querySelector(`[data-cell="${cellRef}"] input`) as HTMLInputElement;
+          if (cellInput) {
+            cellInput.focus();
+            cellInput.select();
+          }
         }
         break;
     }
@@ -6026,7 +6141,11 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
           formula: '', // Clear formula for non-formula values
           value: value
         };
-        setCells(newCells);
+        // Recalculate all dependent formulas
+        console.log('Before recalculation - cells with values:', Object.keys(newCells).filter(k => newCells[k].value).length);
+        const recalculatedCells = recalculateFormulas(newCells);
+        console.log('After recalculation - cells with values:', Object.keys(recalculatedCells).filter(k => recalculatedCells[k].value).length);
+        setCells(recalculatedCells);
 
         // Check if it matches expected hard-coded values (for certain cells)
         const expectedValues: Record<string, number> = problemId === '2' ? {
@@ -6048,6 +6167,9 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         }
       }
     }
+
+    // Save immediately after submitting a cell to prevent data loss
+    setTimeout(() => saveStateToLocalStorage(), 0);
   };
 
   const handleGoHome = () => {
@@ -6144,27 +6266,27 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
         ) : (
           <>
             <CellInput
-              value={(editingCell?.col === col && editingCell?.row === row)
-                ? (cell?.formula?.startsWith('=') ? cell.formula : (cell?.value || ''))
-                : (cell?.formula?.startsWith('=') ? cell?.value : (cell?.value || ''))}
+              value={(editingCell?.col === col && editingCell?.row === row && cell?.formula?.startsWith('='))
+                ? cell.formula
+                : (cell?.value || '')}
               onChange={(e) => {
                 handleCellChange(col, row, e.target.value);
                 // Mark that the user actually changed the value
                 (e.currentTarget as any).hasChanged = true;
+                // Set editingCell when user starts typing
+                setEditingCell({ col, row });
                 // Track if we're editing a formula
                 if (e.target.value.startsWith('=')) {
                   console.log('Setting formula edit mode - col:', col, 'row:', row);
                   setIsEditingFormula(true);
-                  setEditingCell({ col, row });
                   setFormulaBarCursorPos(e.target.selectionStart || 0);
                 } else {
                   setIsEditingFormula(false);
-                  setEditingCell(null);
                 }
               }}
               onFocus={(e) => {
                 handleCellClick(col, row, true);
-                setEditingCell({ col, row });
+                // Don't set editingCell here - only set it when user actually starts typing
                 // Check if this cell has a formula
                 if (cell?.formula?.startsWith('=')) {
                   setIsEditingFormula(true);
@@ -6173,6 +6295,11 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
                 (e.currentTarget as any).hasChanged = false;
               }}
               onKeyDown={(e) => {
+                // If user starts typing (any character key), set editingCell
+                if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                  setEditingCell({ col, row });
+                }
+
                 // Handle Delete/Backspace
                 if (e.key === 'Delete' || e.key === 'Backspace') {
                   // If there's a selected range, let it bubble up to clear the range
@@ -6183,6 +6310,7 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
                   }
                   // Otherwise, stop propagation to allow normal character deletion in input
                   e.stopPropagation();
+                  setEditingCell({ col, row }); // Also set editingCell when deleting
                   return; // Let the default input behavior handle character deletion
                 }
 
@@ -6554,6 +6682,17 @@ const LBOModeler: React.FC<LBOModelerProps> = ({ problemId, problemName }) => {
                   setFormulaBarValue(value);
                   setIsEditingFormula(value.startsWith('='));
                   setFormulaBarCursorPos(e.target.selectionStart || 0);
+
+                  // Update the selected cell as well (this won't cause a loop because handleCellChange
+                  // also sets formulaBarValue to the same value, which won't trigger another onChange)
+                  if (selectedCell) {
+                    const cellRef = `${String.fromCharCode(65 + selectedCell.col)}${selectedCell.row + 1}`;
+                    const currentCell = cells[cellRef];
+                    const currentValue = currentCell?.formula?.startsWith('=') ? currentCell.formula : (currentCell?.value || '');
+                    if (value !== currentValue) {
+                      handleCellChange(selectedCell.col, selectedCell.row, value);
+                    }
+                  }
 
                   // Extract referenced cells for highlighting
                   if (value.startsWith('=')) {

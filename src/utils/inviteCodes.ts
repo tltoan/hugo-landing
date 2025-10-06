@@ -11,25 +11,25 @@ interface InviteCode {
   usedAt?: string;
 }
 
-const STORAGE_KEY = 'hugo_invite_codes';
+const STORAGE_KEY = "hugo_invite_codes";
 
 // Pre-populated test codes for immediate testing
 const DEFAULT_CODES: InviteCode[] = [
   {
-    code: 'HUGO2024',
+    code: "HUGO2024",
     used: false,
     createdAt: new Date().toISOString(),
   },
   {
-    code: 'BETA001',
+    code: "BETA001",
     used: false,
     createdAt: new Date().toISOString(),
   },
   {
-    code: 'FINANCE123',
+    code: "FINANCE123",
     used: false,
     createdAt: new Date().toISOString(),
-  }
+  },
 ];
 
 export const getInviteCodes = (): InviteCode[] => {
@@ -44,14 +44,21 @@ export const getInviteCodes = (): InviteCode[] => {
 
 export const validateInviteCode = (code: string): boolean => {
   const codes = getInviteCodes();
-  const foundCode = codes.find(c => c.code.toLowerCase() === code.toLowerCase() && !c.used);
+  const foundCode = codes.find(
+    (c) => c.code.toLowerCase() === code.toLowerCase() && !c.used
+  );
   return !!foundCode;
 };
 
-export const markInviteCodeUsed = (code: string, userEmail: string): boolean => {
+export const markInviteCodeUsed = (
+  code: string,
+  userEmail: string
+): boolean => {
   const codes = getInviteCodes();
-  const foundCode = codes.find(c => c.code.toLowerCase() === code.toLowerCase() && !c.used);
-  
+  const foundCode = codes.find(
+    (c) => c.code.toLowerCase() === code.toLowerCase() && !c.used
+  );
+
   if (foundCode) {
     foundCode.used = true;
     foundCode.usedAt = new Date().toISOString();
@@ -59,22 +66,22 @@ export const markInviteCodeUsed = (code: string, userEmail: string): boolean => 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(codes));
     return true;
   }
-  
+
   return false;
 };
 
 export const generateInviteCode = (
-  name?: string, 
-  email?: string, 
+  name?: string,
+  email?: string,
   university?: string
 ): string => {
   const codes = getInviteCodes();
-  
+
   // Generate a unique code
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 5).toUpperCase();
   const newCode = `HUGO${random}${timestamp.slice(-3).toUpperCase()}`;
-  
+
   const inviteCode: InviteCode = {
     code: newCode,
     name,
@@ -83,10 +90,10 @@ export const generateInviteCode = (
     used: false,
     createdAt: new Date().toISOString(),
   };
-  
+
   codes.push(inviteCode);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(codes));
-  
+
   return newCode;
 };
 
@@ -94,8 +101,8 @@ export const getInviteCodeStats = () => {
   const codes = getInviteCodes();
   return {
     total: codes.length,
-    used: codes.filter(c => c.used).length,
-    available: codes.filter(c => !c.used).length,
+    used: codes.filter((c) => c.used).length,
+    available: codes.filter((c) => !c.used).length,
   };
 };
 
@@ -112,12 +119,12 @@ export const generateBulkCodes = (count: number = 10): string[] => {
   for (let i = 0; i < count; i++) {
     newCodes.push(generateInviteCode());
   }
-  console.log('Generated codes:', newCodes);
+  console.log("Generated codes:", newCodes);
   return newCodes;
 };
 
 // Make functions available globally for admin use
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   (window as any).hugoAdmin = {
     listInviteCodes: listAllInviteCodes,
     generateCodes: generateBulkCodes,
