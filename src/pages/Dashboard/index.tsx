@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import styled, { keyframes } from "styled-components";
 import { theme } from "../../styles/theme";
 import { useAuth } from "../../contexts/AuthContext";
-import { multiplayerService, MultiplayerGame } from "../../services/supabaseMultiplayerService";
 
 const fadeInUp = keyframes`
   from {
@@ -159,23 +158,66 @@ const FeatureButton = styled.button`
   }
 `;
 
+const DailyHugoCard = styled.div`
+  background: linear-gradient(135deg, #FF6B6B, #FF8E53);
+  border-radius: 20px;
+  padding: 2.5rem;
+  box-shadow: 0 10px 30px rgba(255, 107, 107, 0.2);
+  margin-bottom: 3rem;
+  animation: ${fadeInUp} 0.8s ease-out 0.4s backwards;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 40px rgba(255, 107, 107, 0.3);
+  }
+`;
+
+const DailyHugoContent = styled.div`
+  flex: 1;
+`;
+
+const DailyHugoTitle = styled.h3`
+  font-size: 24px;
+  font-family: ${theme.fonts.header};
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`;
+
+const DailyHugoDescription = styled.p`
+  font-size: 16px;
+  opacity: 0.95;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+`;
+
+const DailyHugoButton = styled.button`
+  padding: 14px 32px;
+  background-color: white;
+  color: #FF6B6B;
+  border: none;
+  border-radius: 30px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  }
+`;
+
 const Dashboard: React.FC = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [activeGames, setActiveGames] = React.useState<MultiplayerGame[]>([]);
-
-  React.useEffect(() => {
-    const loadActiveGames = async () => {
-      try {
-        const games = await multiplayerService.getActiveGames();
-        setActiveGames(games);
-      } catch (error) {
-        console.error('Error loading active games:', error);
-      }
-    };
-
-    loadActiveGames();
-  }, []);
 
   const handleSignOut = () => {
     signOut();
@@ -191,6 +233,10 @@ const Dashboard: React.FC = () => {
 
   const handleJoinRace = () => {
     navigate("/multiplayer");
+  };
+
+  const handleDailyHugo = () => {
+    navigate("/daily-hugo");
   };
 
   return (
@@ -211,29 +257,33 @@ const Dashboard: React.FC = () => {
             Practice with real-world scenarios, compete on leaderboards, and
             track your progress as you become a finance expert.
           </WelcomeDescription>
-          {activeGames.length > 0 && (
-            <div style={{ 
-              marginTop: '1.5rem', 
-              padding: '1rem', 
-              backgroundColor: '#f0f8ff', 
-              borderRadius: '8px',
-              border: '1px solid #e3f2fd'
-            }}>
-              <strong style={{ color: theme.colors.primary }}>🎮 Live Multiplayer Activity</strong>
-              <p style={{ margin: '0.5rem 0 0 0', fontSize: '14px', color: theme.colors.text }}>
-                {activeGames.length} active multiplayer game{activeGames.length !== 1 ? 's' : ''} waiting for players
-              </p>
-            </div>
-          )}
         </WelcomeCard>
+
+        <DailyHugoCard onClick={handleDailyHugo} style={{ cursor: 'pointer' }}>
+          <DailyHugoContent>
+            <DailyHugoTitle>
+              <span style={{ fontSize: '28px' }}>🎯</span>
+              Daily HUGO
+            </DailyHugoTitle>
+            <DailyHugoDescription>
+              Practice IB interview questions daily. Build streaks, earn points,
+              and master the 400 essential questions for investment banking interviews.
+            </DailyHugoDescription>
+            <DailyHugoButton onClick={(e) => {
+              e.stopPropagation();
+              handleDailyHugo();
+            }}>
+              Today's Question →
+            </DailyHugoButton>
+          </DailyHugoContent>
+        </DailyHugoCard>
 
         <FeatureGrid>
           <FeatureCard delay={4}>
             <FeatureIcon>📚</FeatureIcon>
             <FeatureTitle>Practice Problems</FeatureTitle>
             <FeatureDescription>
-              Access 5 carefully crafted LBO problems across 3 difficulty
-              levels. From Paper LBOs to Advanced scenarios. More to come.
+              Master 10 financial models: 5 LBO and 5 DCF problems across 3 difficulty levels. From beginner to advanced scenarios.
             </FeatureDescription>
             <FeatureButton onClick={handleStartPracticing}>
               Start Practicing
@@ -260,7 +310,7 @@ const Dashboard: React.FC = () => {
               join existing races, and compete on global leaderboards.
             </FeatureDescription>
             <FeatureButton onClick={handleJoinRace}>
-              {activeGames.length > 0 ? 'Join Active Games' : 'Start Racing'}
+              Start Racing
             </FeatureButton>
           </FeatureCard>
         </FeatureGrid>

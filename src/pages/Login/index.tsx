@@ -142,6 +142,17 @@ const ErrorMessage = styled.div`
   animation: ${slideUp} 0.4s ease-out;
 `;
 
+const SuccessMessage = styled.div`
+  background-color: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #16a34a;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  text-align: center;
+  animation: ${slideUp} 0.4s ease-out;
+`;
+
 const ToggleText = styled.div`
   text-align: center;
   margin-top: 1.5rem;
@@ -180,15 +191,17 @@ const LoginPage: React.FC = () => {
   // Invite code removed
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
-    console.log('📝 Form submission:', { 
-      isSignUp, 
-      email, 
+    console.log('📝 Form submission:', {
+      isSignUp,
+      email,
       username
     });
 
@@ -196,12 +209,29 @@ const LoginPage: React.FC = () => {
       if (isSignUp) {
         console.log('🆕 Processing sign up...');
         // Create account
-        const { error } = await signUp(email, password, { username });
+        const { error, needsEmailConfirmation } = await signUp(email, password, { username });
         if (error) throw error;
+
+        // If email confirmation is required, show success message
+        if (needsEmailConfirmation) {
+          setError(null);
+          setSuccess('Account created! Please check your email to confirm your account before signing in.');
+          // Clear form
+          setEmail('');
+          setPassword('');
+          setUsername('');
+          setIsSignUp(false); // Switch to sign in mode
+        }
       } else {
         console.log('🔑 Processing sign in...');
         const { error } = await signIn(email, password);
-        if (error) throw error;
+        if (error) {
+          // Provide more helpful error message for unconfirmed accounts
+          if (error.message === 'Invalid login credentials') {
+            throw new Error('Invalid login credentials. If you just signed up, please check your email and confirm your account first.');
+          }
+          throw error;
+        }
       }
     } catch (err: any) {
       console.error('❌ Form submission error:', err);
@@ -220,6 +250,7 @@ const LoginPage: React.FC = () => {
         </Subtitle>
 
         {error && <ErrorMessage>{error}</ErrorMessage>}
+        {success && <SuccessMessage>{success}</SuccessMessage>}
 
         <Form onSubmit={handleSubmit}>
           <FormContent $key={isSignUp ? 'signup' : 'signin'} key={isSignUp ? 'signup' : 'signin'}>
@@ -271,6 +302,7 @@ const LoginPage: React.FC = () => {
             onClick={() => {
               setIsSignUp(!isSignUp);
               setError(null);
+              setSuccess(null);
             }}
           >
             {isSignUp ? 'Sign in' : 'Sign up'}

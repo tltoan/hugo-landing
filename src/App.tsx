@@ -11,6 +11,7 @@ import ProblemPage from './pages/Problem';
 import LeaderboardPage from './pages/Leaderboard';
 import MultiplayerPage from './pages/Multiplayer';
 import MultiplayerGamePage from './pages/MultiplayerGame';
+import DailyHugo from './pages/DailyHugo';
 
 // Main App Router Component
 const AppRouter: React.FC = () => {
@@ -115,13 +116,19 @@ const AppRouter: React.FC = () => {
           user ? <MultiplayerPage /> : <Navigate to="/login" replace />
         } 
       />
-      <Route 
-        path="/multiplayer/game/:gameId" 
+      <Route
+        path="/multiplayer/game/:gameId"
         element={
           user ? <MultiplayerGamePage /> : <Navigate to="/login" replace />
-        } 
+        }
       />
-      
+      <Route
+        path="/daily-hugo"
+        element={
+          user ? <DailyHugo /> : <Navigate to="/login" replace />
+        }
+      />
+
       {/* Catch all route */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

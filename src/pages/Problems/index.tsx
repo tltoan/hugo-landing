@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styled, { keyframes } from "styled-components";
 import { theme } from "../../styles/theme";
-import { useAuth } from "../../contexts/AuthContext";
 import Header from "../../components/shared/Header";
 
 const fadeInUp = keyframes`
@@ -38,7 +37,8 @@ const PageTitle = styled.h2`
 
 const FilterSection = styled.div`
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   gap: 1rem;
   margin-bottom: 3rem;
   animation: ${fadeInUp} 0.8s ease-out 0.4s backwards;
@@ -168,10 +168,12 @@ interface Problem {
   description: string;
   timeLimit: number;
   maxScore: number;
+  type: "lbo" | "dcf";
 }
 
 // Mock data for now - we'll connect to real data later
 const mockProblems: Problem[] = [
+  // LBO Problems
   {
     id: "1",
     name: "TechCorp LBO",
@@ -180,6 +182,7 @@ const mockProblems: Problem[] = [
       "A straightforward LBO analysis of a technology company. Perfect for getting started with LBO modeling fundamentals.",
     timeLimit: 45,
     maxScore: 1000,
+    type: "lbo",
   },
   {
     id: "2",
@@ -189,6 +192,7 @@ const mockProblems: Problem[] = [
       "Analyze the leveraged buyout of a retail chain. Focus on working capital and seasonality considerations.",
     timeLimit: 50,
     maxScore: 1000,
+    type: "lbo",
   },
   {
     id: "3",
@@ -198,6 +202,7 @@ const mockProblems: Problem[] = [
       "Complex manufacturing company LBO with multiple debt tranches and detailed cash flow analysis.",
     timeLimit: 60,
     maxScore: 1500,
+    type: "lbo",
   },
   {
     id: "4",
@@ -207,6 +212,7 @@ const mockProblems: Problem[] = [
       "LBO modeling for a healthcare services company with regulatory considerations and growth scenarios.",
     timeLimit: 65,
     maxScore: 1500,
+    type: "lbo",
   },
   {
     id: "5",
@@ -216,6 +222,59 @@ const mockProblems: Problem[] = [
       "Multi-divisional energy company with complex debt structures, commodity hedging, and environmental considerations.",
     timeLimit: 90,
     maxScore: 2000,
+    type: "lbo",
+  },
+
+  // DCF Problems
+  {
+    id: "dcf-1",
+    name: "TechFlow SaaS DCF",
+    difficulty: "beginner",
+    description:
+      "Value a high-growth SaaS company using DCF. Build revenue projections, calculate free cash flow, and determine enterprise value.",
+    timeLimit: 40,
+    maxScore: 1000,
+    type: "dcf",
+  },
+  {
+    id: "dcf-2",
+    name: "RetailExpand DCF",
+    difficulty: "beginner",
+    description:
+      "Value a retail chain with aggressive store expansion plans. Model store count growth, same-store sales, and working capital needs.",
+    timeLimit: 45,
+    maxScore: 1000,
+    type: "dcf",
+  },
+  {
+    id: "dcf-3",
+    name: "IndustrialCo DCF",
+    difficulty: "intermediate",
+    description:
+      "Multi-segment manufacturing company valuation. Model different growth rates per segment with detailed capex and depreciation.",
+    timeLimit: 60,
+    maxScore: 1500,
+    type: "dcf",
+  },
+  {
+    id: "dcf-4",
+    name: "BioPharma Pipeline DCF",
+    difficulty: "advanced",
+    description:
+      "Advanced DCF with probability-weighted drug pipeline, patent expiries, and R&D modeling. Risk-adjusted discount rates required.",
+    timeLimit: 75,
+    maxScore: 2000,
+    type: "dcf",
+  },
+  {
+    id: "dcf-5",
+    name: "MegaCorp Conglomerate DCF",
+    difficulty: "advanced",
+    description:
+      "Sum-of-the-parts valuation for a multi-division conglomerate. Each division requires different WACC and growth assumptions.",
+    timeLimit: 90,
+    maxScore: 2500,
+    type: "dcf",
   },
 ];
 
@@ -223,15 +282,17 @@ const ProblemsPage: React.FC = () => {
   // const { user } = useAuth(); // Will be used for tracking user progress
   const navigate = useNavigate();
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
+  const [selectedType, setSelectedType] = useState<string>("all");
 
   const handleStartProblem = (problemId: string) => {
     navigate(`/problem/${problemId}`);
   };
 
-  const filteredProblems =
-    selectedDifficulty === "all"
-      ? mockProblems
-      : mockProblems.filter((p) => p.difficulty === selectedDifficulty);
+  const filteredProblems = mockProblems.filter((p) => {
+    const difficultyMatch = selectedDifficulty === "all" || p.difficulty === selectedDifficulty;
+    const typeMatch = selectedType === "all" || p.type === selectedType;
+    return difficultyMatch && typeMatch;
+  });
 
   return (
     <PageContainer>
@@ -241,26 +302,46 @@ const ProblemsPage: React.FC = () => {
         <PageTitle>Practice Problems</PageTitle>
 
         <FilterSection>
-          <FilterButton
-            $active={selectedDifficulty === "all"}
-            onClick={() => setSelectedDifficulty("all")}>
-            All Problems
-          </FilterButton>
-          <FilterButton
-            $active={selectedDifficulty === "beginner"}
-            onClick={() => setSelectedDifficulty("beginner")}>
-            Beginner
-          </FilterButton>
-          <FilterButton
-            $active={selectedDifficulty === "intermediate"}
-            onClick={() => setSelectedDifficulty("intermediate")}>
-            Intermediate
-          </FilterButton>
-          <FilterButton
-            $active={selectedDifficulty === "advanced"}
-            onClick={() => setSelectedDifficulty("advanced")}>
-            Advanced
-          </FilterButton>
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+            <FilterButton
+              $active={selectedType === "all"}
+              onClick={() => setSelectedType("all")}>
+              All Types
+            </FilterButton>
+            <FilterButton
+              $active={selectedType === "lbo"}
+              onClick={() => setSelectedType("lbo")}>
+              LBO Models
+            </FilterButton>
+            <FilterButton
+              $active={selectedType === "dcf"}
+              onClick={() => setSelectedType("dcf")}>
+              DCF Models
+            </FilterButton>
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <FilterButton
+              $active={selectedDifficulty === "all"}
+              onClick={() => setSelectedDifficulty("all")}>
+              All Difficulties
+            </FilterButton>
+            <FilterButton
+              $active={selectedDifficulty === "beginner"}
+              onClick={() => setSelectedDifficulty("beginner")}>
+              Beginner
+            </FilterButton>
+            <FilterButton
+              $active={selectedDifficulty === "intermediate"}
+              onClick={() => setSelectedDifficulty("intermediate")}>
+              Intermediate
+            </FilterButton>
+            <FilterButton
+              $active={selectedDifficulty === "advanced"}
+              onClick={() => setSelectedDifficulty("advanced")}>
+              Advanced
+            </FilterButton>
+          </div>
         </FilterSection>
 
         <ProblemsGrid>
@@ -269,9 +350,22 @@ const ProblemsPage: React.FC = () => {
               <ProblemHeader>
                 <div style={{ flex: 1 }}>
                   <ProblemTitle>{problem.name}</ProblemTitle>
-                  <DifficultyBadge level={problem.difficulty}>
-                    {problem.difficulty}
-                  </DifficultyBadge>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    <DifficultyBadge level={problem.difficulty}>
+                      {problem.difficulty}
+                    </DifficultyBadge>
+                    <span style={{
+                      backgroundColor: problem.type === 'lbo' ? '#6366f1' : '#10b981',
+                      color: 'white',
+                      padding: '4px 12px',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      textTransform: 'uppercase'
+                    }}>
+                      {problem.type}
+                    </span>
+                  </div>
                 </div>
               </ProblemHeader>
               <ProblemDescription>{problem.description}</ProblemDescription>
